@@ -7,8 +7,11 @@ CONTAINER_NAME="ras-stac"
 # CMD="python3 -m new_ras_geom"
 # CONFIG_JSON_PATH="ras-stac/examples/ras-geom.json"
 
-CMD="python3 -m new_ras_plan"
-CONFIG_JSON_PATH="ras-stac/examples/ras-plan.json"
+# CMD="python3 -m new_ras_plan"
+# CONFIG_JSON_PATH="ras-stac/examples/ras-plan.json"
+
+CMD="python3 -m new_ras_dg"
+CONFIG_JSON_PATH="ras-stac/examples/ras-dg.json"
 
 docker build -f Dockerfile -t $CONTAINER_NAME . # --no-cache
 
