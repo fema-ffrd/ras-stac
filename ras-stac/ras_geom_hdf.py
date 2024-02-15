@@ -18,6 +18,7 @@ PLUGIN_PARAMS = {
         "lulc_assets",
         "mannings_assets",
         "other_assets",
+        "simplify"
     ],
 }
 
@@ -36,6 +37,7 @@ def main(params: dict):
     lulc_assets = params.get("lulc_assets", [])
     mannings_assets = params.get("mannings_assets", [])
     other_assets = params.get("other_assets", [])
+    simplify = params.get("simplify", 100)
 
     # Prep parameters
     bucket, key = split_s3_key(geom_hdf)
@@ -62,7 +64,7 @@ def main(params: dict):
     logging.info("Creating geom item")
 
     # Create geometry ite,
-    item = create_model_item(geom_hdf)
+    item = create_model_item(geom_hdf, simplify=simplify)
 
     # Create list of assets to add to item
     geom_assets = new_geom_assets(
@@ -76,10 +78,9 @@ def main(params: dict):
     for asset_type, asset_list in geom_assets.items():
         logging.debug(asset_type)
         for asset_file in asset_list:
-            _, key = split_s3_key(asset_file)
+            _, asset_key = split_s3_key(asset_file)
             logging.info(f"Adding asset {asset_file} to item")
-            key = key
-            obj = bucket.Object(key)
+            obj = bucket.Object(asset_key)
             metadata = get_basic_object_metadata(obj)
             asset_info = ras_geom_asset_info(asset_file, asset_type)
             asset = pystac.Asset(

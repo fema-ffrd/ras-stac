@@ -2,10 +2,13 @@
 
 # Test script to build and run the docker container.
 CONTAINER_NAME="ras-stac"
-CMD="python3 -m new_ras_geom"
 
-# Path to your JSON configuration file
-CONFIG_JSON_PATH="ras-stac/examples/ras-geom.json"
+# Uncomment to test 
+# CMD="python3 -m new_ras_geom"
+# CONFIG_JSON_PATH="ras-stac/examples/ras-geom.json"
+
+CMD="python3 -m new_ras_plan"
+CONFIG_JSON_PATH="ras-stac/examples/ras-plan.json"
 
 docker build -f Dockerfile -t $CONTAINER_NAME . # --no-cache
 
