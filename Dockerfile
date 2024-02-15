@@ -14,7 +14,7 @@ COPY ras-stac/utils utils
 
 # Copy plugin functions
 COPY ras-stac/ras_geom_hdf.py .
-
+COPY ras-stac/ras_plan_hdf.py .
 
 # Copy plugin main functions
 COPY ras-stac/plugins .

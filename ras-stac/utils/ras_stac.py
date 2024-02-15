@@ -224,7 +224,7 @@ def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str) -> dict:
     The function performs the following steps:
     1. Opens the HEC-RAS plan HDF file from the provided URL in read-binary mode.
     2. Initializes a dictionary `metadata` with the key "ras:simulation" and the value being the provided
-      `simulation`.
+      `simulation` such as the plan id.
     3. Tries to open the HEC-RAS plan HDF file in read mode. If the file is not found, it logs an error
       and returns.
     4. Tries to get the plan attributes from the HDF file and update the `metadata` dictionary with them.
