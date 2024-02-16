@@ -36,7 +36,6 @@ def main(params:dict):
 
     # Prep parameters
     bucket, _ = split_s3_key(plan_dg)
-    asset_list.append(plan_dg)
 
     # load env for local testing
     try:
