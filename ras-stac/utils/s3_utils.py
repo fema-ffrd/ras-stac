@@ -4,8 +4,9 @@ import json
 
 import logging
 
-logging.getLogger('boto3').setLevel(logging.WARNING)
-logging.getLogger('botocore').setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
+
 
 def get_basic_object_metadata(obj: ObjectSummary) -> dict:
     """
@@ -91,15 +92,15 @@ def s3_key_public_url_converter(url: str) -> str:
         return f"https://{bucket}.s3.amazonaws.com/{key}"
     elif url.startswith("https://") and ".s3.amazonaws.com/" in url:
         bucket = url.replace("https://", "").split(".s3.amazonaws.com")[0]
-        key = url.replace(f"https://{bucket}.s3.amazonaws.com/","")
+        key = url.replace(f"https://{bucket}.s3.amazonaws.com/", "")
         return f"s3://{bucket}/{key}"
     else:
         raise ValueError("Invalid URL format")
-    
+
 
 def verify_safe_prefix(s3_key: str):
     """
-    TODO: discuss this with the team. Would like some safety mechanism to ensure that the S3 key is limited to  
+    TODO: discuss this with the team. Would like some safety mechanism to ensure that the S3 key is limited to
     certain prefixes. Should there be some restriction where these files can be written?
     """
     parts = s3_key.split("/")

@@ -8,8 +8,8 @@ import numpy as np
 from utils.common import GEOM_HDF_IGNORE_PROPERTIES
 import logging
 
-logging.getLogger('boto3').setLevel(logging.WARNING)
-logging.getLogger('botocore').setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 PLUGIN_PARAMS = {
     "required": ["geom_hdf", "new_item_s3_key"],
@@ -18,7 +18,7 @@ PLUGIN_PARAMS = {
         "lulc_assets",
         "mannings_assets",
         "other_assets",
-        "simplify"
+        "simplify",
     ],
 }
 
@@ -109,13 +109,12 @@ def main(params: dict):
         except KeyError:
             logging.warning(f"property {prop} not found")
 
-
     logging.info("Writing geom item to s3")
     item.set_self_href(item_public_url)
     copy_item_to_s3(item, item_s3_key)
 
     logging.info("Program completed successfully")
-    
+
     results = [
         {
             "href": item_public_url,

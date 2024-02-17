@@ -8,18 +8,16 @@ from dotenv import find_dotenv, load_dotenv
 import numpy as np
 from utils.common import PLAN_HDF_IGNORE_PROPERTIES
 
-logging.getLogger('boto3').setLevel(logging.WARNING)
-logging.getLogger('botocore').setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 PLUGIN_PARAMS = {
     "required": ["plan_hdf", "new_item_s3_key", "geom_item_s3_key", "sim_id"],
-    "optional": [
-        "ras_assets",
-        "item_props"
-    ],
+    "optional": ["ras_assets", "item_props"],
 }
 
-def main(params:dict):
+
+def main(params: dict):
     #  Required parameters
     plan_hdf = params.get("plan_hdf", None)
     sim_id = params.get("sim_id", None)
@@ -38,7 +36,6 @@ def main(params:dict):
     bucket, _ = split_s3_key(plan_hdf)
     asset_list.append(plan_hdf)
 
-
     # load env for local testing
     try:
         load_dotenv(find_dotenv())
@@ -49,7 +46,6 @@ def main(params:dict):
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(bucket)
     AWS_SESSION = AWSSession(boto3.Session())
-
 
     # Set up logging
     logging.basicConfig(
@@ -71,7 +67,7 @@ def main(params:dict):
         sim_item = create_model_simulation_item(geom_item, sim_meta, sim_id)
     except TypeError:
         return logging.error("unable to retrieve model results. please verify plan was executed and results exist")
-    
+
     sim_item.add_derived_from(geom_item)
     sim_item.properties.update(sim_item_props)
 
@@ -88,7 +84,6 @@ def main(params:dict):
         )
         sim_item.add_asset(asset_info["title"], asset)
 
-
     for prop in PLAN_HDF_IGNORE_PROPERTIES:
         try:
             del sim_item.properties[prop]
@@ -99,9 +94,8 @@ def main(params:dict):
     sim_item.set_self_href(sim_item_public_url)
     copy_item_to_s3(sim_item, sim_item_s3_key)
 
-
     logging.info("Program completed successfully")
-    
+
     results = [
         {
             "href": sim_item_public_url,

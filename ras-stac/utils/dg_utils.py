@@ -18,13 +18,11 @@ from .s3_utils import *
 
 import logging
 
-logging.getLogger('boto3').setLevel(logging.WARNING)
-logging.getLogger('botocore').setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 
-def get_raster_bounds(
-    s3_key: str, aws_session: AWSSession
-) -> Tuple[float, float, float, float]:
+def get_raster_bounds(s3_key: str, aws_session: AWSSession) -> Tuple[float, float, float, float]:
     """
     This function retrieves the geographic bounds of a raster file stored in an AWS S3 bucket and returns them in the WGS 84 (EPSG:4326) coordinate reference system.
 
@@ -82,9 +80,7 @@ def bbox_to_polygon(bbox) -> shapely.Polygon:
     )
 
 
-def create_depth_grid_item(
-    s3_obj: Object, item_id: str, aws_session: AWSSession
-) -> pystac.Item:
+def create_depth_grid_item(s3_obj: Object, item_id: str, aws_session: AWSSession) -> pystac.Item:
     """
     This function creates a PySTAC Item for a depth grid raster file stored in an AWS S3 bucket.
 

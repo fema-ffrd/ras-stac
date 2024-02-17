@@ -6,10 +6,11 @@ import re
 
 import logging
 
-logging.getLogger('boto3').setLevel(logging.WARNING)
-logging.getLogger('botocore').setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 from .ras_hdf import *
+
 
 def create_model_item(ras_geom_hdf_url: str, simplify: float = 100.0) -> pystac.Item:
     """
@@ -40,9 +41,7 @@ def create_model_item(ras_geom_hdf_url: str, simplify: float = 100.0) -> pystac.
     9. Returns the created STAC item.
     """
     if Path(ras_geom_hdf_url).suffix != ".hdf":
-        raise ValueError(
-            f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}"
-        )
+        raise ValueError(f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}")
 
     ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
 
@@ -258,9 +257,7 @@ def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str) -> dict:
     return metadata
 
 
-def create_model_simulation_item(
-    ras_item: pystac.Item, results_meta: dict, model_sim_id: str
-) -> pystac.Item:
+def create_model_simulation_item(ras_item: pystac.Item, results_meta: dict, model_sim_id: str) -> pystac.Item:
     """
     This function creates a PySTAC Item for a model simulation.
 

@@ -8,18 +8,16 @@ from dotenv import find_dotenv, load_dotenv
 import numpy as np
 from utils.common import PLAN_HDF_IGNORE_PROPERTIES
 
-logging.getLogger('boto3').setLevel(logging.WARNING)
-logging.getLogger('botocore').setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 PLUGIN_PARAMS = {
     "required": ["plan_dg", "new_item_s3_key", "plan_item_s3_key", "dg_id"],
-    "optional": [
-        "item_props",
-        "assets"
-    ],
+    "optional": ["item_props", "assets"],
 }
 
-def main(params:dict):
+
+def main(params: dict):
     #  Required parameters
     plan_dg = params.get("plan_dg", None)
     dg_id = params.get("dg_id", None)
@@ -47,7 +45,6 @@ def main(params:dict):
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(bucket)
     AWS_SESSION = AWSSession(boto3.Session())
-
 
     # Set up logging
     logging.basicConfig(
@@ -84,9 +81,8 @@ def main(params:dict):
     dg_item.set_self_href(dg_item_public_url)
     copy_item_to_s3(dg_item, dg_item_s3_key)
 
-
     logging.info("Program completed successfully")
-    
+
     results = [
         {
             "href": dg_item_public_url,

@@ -12,8 +12,8 @@ import boto3
 from io import BytesIO
 import logging
 
-logging.getLogger('boto3').setLevel(logging.WARNING)
-logging.getLogger('botocore').setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 
 def to_snake_case(text):
@@ -317,9 +317,7 @@ class RasHdf(h5py.File):
         return attrs
 
     @classmethod
-    def hdf_from_zip(
-        cls, bucket_name, zip_file_key, hdf_file_name, ras_hdf_type, mode="r", **kwargs
-    ):
+    def hdf_from_zip(cls, bucket_name, zip_file_key, hdf_file_name, ras_hdf_type, mode="r", **kwargs):
         """
         Extract an HDF5 file from a ZIP file stored in an S3 bucket.
 
@@ -390,16 +388,12 @@ class RasPlanHdf(RasHdf):
 
         plan_info = self.get("Plan Data/Plan Information")
         if plan_info is not None:
-            plan_info_attrs = hdf5_attrs_to_dict(
-                plan_info.attrs, prefix="Plan Information"
-            )
+            plan_info_attrs = hdf5_attrs_to_dict(plan_info.attrs, prefix="Plan Information")
             attrs.update(plan_info_attrs)
 
         plan_params = self.get("Plan Data/Plan Parameters")
         if plan_params is not None:
-            plan_params_attrs = hdf5_attrs_to_dict(
-                plan_params.attrs, prefix="Plan Parameters"
-            )
+            plan_params_attrs = hdf5_attrs_to_dict(plan_params.attrs, prefix="Plan Parameters")
             attrs.update(plan_params_attrs)
 
         precip = self.get("Event Conditions/Meteorology/Precipitation")
@@ -434,40 +428,26 @@ class RasPlanHdf(RasHdf):
         attrs = {}
         unsteady_results = self.get("Results/Unsteady")
         if unsteady_results is not None:
-            unsteady_results_attrs = hdf5_attrs_to_dict(
-                unsteady_results.attrs, prefix="Unsteady Results"
-            )
+            unsteady_results_attrs = hdf5_attrs_to_dict(unsteady_results.attrs, prefix="Unsteady Results")
             attrs.update(unsteady_results_attrs)
 
         summary = self.get("Results/Unsteady/Summary")
         if summary is not None:
             summary_attrs = hdf5_attrs_to_dict(summary.attrs, prefix="Results Summary")
-            computation_time_total = summary_attrs.get(
-                "results_summary:computation_time_total"
-            )
+            computation_time_total = summary_attrs.get("results_summary:computation_time_total")
             results_summary = {
                 "results_summary:computation_time_total": computation_time_total,
-                "results_summary:run_time_window": summary_attrs.get(
-                    "results_summary:run_time_window"
-                ),
-                "results_summary:solution": summary_attrs.get(
-                    "results_summary:solution"
-                ),
+                "results_summary:run_time_window": summary_attrs.get("results_summary:run_time_window"),
+                "results_summary:solution": summary_attrs.get("results_summary:solution"),
             }
             if computation_time_total is not None:
-                computation_time_total_minutes = (
-                    parse_duration(computation_time_total).total_seconds() / 60
-                )
-                results_summary[
-                    "results_summary:computation_time_total_minutes"
-                ] = computation_time_total_minutes
+                computation_time_total_minutes = parse_duration(computation_time_total).total_seconds() / 60
+                results_summary["results_summary:computation_time_total_minutes"] = computation_time_total_minutes
             attrs.update(results_summary)
 
         volume_accounting = self.get("Results/Unsteady/Summary/Volume Accounting")
         if volume_accounting is not None:
-            volume_accounting_attrs = hdf5_attrs_to_dict(
-                volume_accounting.attrs, prefix="Volume Accounting"
-            )
+            volume_accounting_attrs = hdf5_attrs_to_dict(volume_accounting.attrs, prefix="Volume Accounting")
             attrs.update(volume_accounting_attrs)
         return attrs
 
@@ -517,22 +497,14 @@ class RasGeomHdf(RasHdf):
         try:
             d2_flow_area = get_first_hdf_group(self.get("Geometry/2D Flow Areas"))
         except AttributeError:
-            logging.warning(
-                "Unable to get 2D Flow Area; Geometry/2D Flow Areas group not found in HDF5 file."
-            )
+            logging.warning("Unable to get 2D Flow Area; Geometry/2D Flow Areas group not found in HDF5 file.")
             return attrs
 
         if d2_flow_area is not None:
-            d2_flow_area_attrs = hdf5_attrs_to_dict(
-                d2_flow_area.attrs, prefix="2D Flow Areas"
-            )
-            cell_average_size = d2_flow_area_attrs.get(
-                "2d_flow_area:cell_average_size", None
-            )
+            d2_flow_area_attrs = hdf5_attrs_to_dict(d2_flow_area.attrs, prefix="2D Flow Areas")
+            cell_average_size = d2_flow_area_attrs.get("2d_flow_area:cell_average_size", None)
             if cell_average_size is not None:
-                d2_flow_area_attrs["2d_flow_area:cell_average_length"] = (
-                    cell_average_size**0.5
-                )
+                d2_flow_area_attrs["2d_flow_area:cell_average_length"] = cell_average_size**0.5
             attrs.update(d2_flow_area_attrs)
 
         return attrs
@@ -550,16 +522,12 @@ class RasGeomHdf(RasHdf):
         try:
             projection = self.attrs.get("Projection")
         except AttributeError:
-            logging.warning(
-                "Unable to get projection; Projection attribute not found in HDF5 file."
-            )
+            logging.warning("Unable to get projection; Projection attribute not found in HDF5 file.")
             return None
         if projection is not None:
             return projection.decode("utf-8")
 
-    def get_2d_flow_area_perimeter(
-        self, simplify: float = 0.001, wgs84: bool = True
-    ) -> Optional[shapely.Polygon]:
+    def get_2d_flow_area_perimeter(self, simplify: float = 0.001, wgs84: bool = True) -> Optional[shapely.Polygon]:
         """
         This method retrieves the perimeter of a 2D flow area from a HEC-RAS plan HDF5 file and returns it
         as a Shapely Polygon.
