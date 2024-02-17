@@ -1,0 +1,136 @@
+{
+  "info": {
+    "version": "2024.2.17",
+    "id": "ras-plan-to-stac",
+    "title": "STAC Item Generation (RAS PLAN HDF)",
+    "description": "Creates a new stac item from a HEC-RAS plan HDF file",
+    "outputTransmission": null,
+    "jobControlOptions": [
+      "sync-execute"
+    ]
+  },
+  "host": {
+    "type": "local"
+  },
+  "container": {
+    "image": "public.ecr.aws/s7t2t0q0/ras-stac:latest",
+    "command": [
+      "python",
+      "-m",
+      "new_ras_plan"
+    ],
+    "envVars": [
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_REGION"
+    ],
+    "maxResources": {
+      "cpus": 0.1,
+      "memory": 256
+    }
+  },
+  "inputs": [
+    {
+      "id": "plan_hdf",
+      "title": "RAS Plan HDF",
+      "description": "Full S3 path to the HEC-RAS plan HDF file (i.e. s3://bucket/key/p01.hdf)",
+      "input": {
+        "literalDataDomain": {
+          "dataType": "string",
+          "valueDefinition": {
+            "anyValue": true
+          }
+        }
+      },
+      "minOccurs": 1,
+      "maxOccurs": 1
+    },
+    {
+      "id": "new_item_s3_key",
+      "title": "STAC Item S3 Key",
+      "description": "Full S3 path to STAC item for plan_hdf. Prefix must begin with `stac/` (i.e. s3://bucket/stac/p01.hdf.json)",
+      "input": {
+        "literalDataDomain": {
+          "dataType": "string",
+          "valueDefinition": {
+            "anyValue": true
+          }
+        }
+      },
+      "minOccurs": 1,
+      "maxOccurs": 1
+    },
+    {
+      "id": "geom_item_s3_key",
+      "title": "STAC Geometry Item S3 Key",
+      "description": "Full S3 path to STAC item from geom_hdf used in the plan. (i.e. s3://bucket/stac/geom.hdf.json)",
+      "input": {
+        "literalDataDomain": {
+          "dataType": "string",
+          "valueDefinition": {
+            "anyValue": true
+          }
+        }
+      },
+      "minOccurs": 1,
+      "maxOccurs": 1
+    },
+    {
+      "id": "sim_id",
+      "title": "Simulation ID",
+      "description": "Unique identifier for the simulation (i.e. \"modelx-r0001-s0001\")",
+      "input": {
+        "literalDataDomain": {
+          "dataType": "string",
+          "valueDefinition": {
+            "anyValue": true
+          }
+        }
+      },
+      "minOccurs": 1,
+      "maxOccurs": 1
+    },
+    {
+      "id": "ras_assets",
+      "title": "Miscelaneous Assets",
+      "description": "HEC-RAS datasets used in the simulation  (i.e. [s3://bucket/model/plan-name.prj])",
+      "input": {
+        "literalDataDomain": {
+          "dataType": "list",
+          "valueDefinition": {
+            "anyValue": true
+          }
+        }
+      },
+      "minOccurs": 0,
+      "maxOccurs": 50
+    },
+    {
+      "id": "item_props",
+      "title": "Item Properties",
+      "description": "Dictionary of items  (i.e. {\"cloud_wat:realization\":\"1\"})",
+      "input": {
+        "literalDataDomain": {
+          "dataType": "list",
+          "valueDefinition": {
+            "anyValue": true
+          }
+        }
+      },
+      "minOccurs": 0,
+      "maxOccurs": 100
+    }
+  ],
+  "outputs": [
+    {
+      "id": "results",
+      "title": "results",
+      "description": null,
+      "output": {
+        "transmissionMode": [
+          "value"
+        ]
+      }
+    }
+  ]
+}
