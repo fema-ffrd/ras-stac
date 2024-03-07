@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  minio:
+    container_name: minio
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    env_file:
+      - .env
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - ./.data/minio:/data
+      - ./example-data:/example-data
+    networks:
+      - xfer
+
+  mc:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      echo 'waiting for minio to start and verify credentials';
+      until mc alias set myminio http://minio:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD; do
+        sleep 1
+      done;
+      echo 'creating ${STORAGE_BUCKET} bucket in minio';
+      mc mb myminio/\${STORAGE_BUCKET};
+      echo 'copying data to ${STORAGE_BUCKET} bucket in minio';
+      mc cp --recursive /example-data/ myminio/${STORAGE_BUCKET}/;
+      echo 'updating policy to public for ${STORAGE_BUCKET}';
+      mc anonymous set public myminio/\${STORAGE_BUCKET};
+      "
+    volumes:
+      - ./example-data:/example-data
+    networks:
+      - xfer
+
+  stac-browser:
+    image: public.ecr.aws/dewberry/stac-browser
+    ports:
+      - '8080:8080'
+    networks:
+      - xfer
+    entrypoint: npm start -- --open --catalogUrl="http://localhost:9000/pilot/stac/catalog.json"
+
+networks:
+  xfer:
+    driver: bridge
