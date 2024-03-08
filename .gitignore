@@ -133,3 +133,7 @@ dmypy.json
 
 .DS_Store
 scratch/
+
+.data/
+example-data/
+stac-browser/

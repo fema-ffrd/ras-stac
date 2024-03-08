@@ -20,7 +20,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-logging.info("Creating geom item")
 
 def new_geom_item(
     geom_hdf: str,
@@ -32,8 +31,10 @@ def new_geom_item(
     simplify: int = 100,
     dev_mode=False,
 ):
+    logging.info("Creating geom item")
     verify_safe_prefix(new_item_s3_key)
-    item_public_url = s3_key_public_url_converter(new_item_s3_key)
+    item_public_url = s3_key_public_url_converter(new_item_s3_key, dev_mode=dev_mode)
+    logging.debug(f"item_public_url: {item_public_url}")
 
     # Prep parameters
     bucket_name, _ = split_s3_key(geom_hdf)
@@ -63,7 +64,7 @@ def new_geom_item(
             metadata = get_basic_object_metadata(obj)
             asset_info = ras_geom_asset_info(asset_file, asset_type)
             asset = pystac.Asset(
-                s3_key_public_url_converter(asset_file),
+                s3_key_public_url_converter(asset_file, dev_mode=dev_mode),
                 extra_fields=metadata,
                 roles=asset_info["roles"],
                 description=asset_info["description"],
@@ -98,7 +99,7 @@ def new_geom_item(
         {
             "href": item_public_url,
             "rel": "self",
-            "title": "plublic_url",
+            "title": "public_url",
             "type": "application/json",
         },
         {
@@ -132,11 +133,11 @@ def main(params: dict, dev_mode=False):
         mannings_assets,
         other_assets,
         simplify,
-        dev_mode
+        dev_mode,
     )
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     plugin_logger()
 
     if not load_dotenv(find_dotenv()):

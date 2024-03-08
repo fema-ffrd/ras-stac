@@ -12,7 +12,9 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 from .ras_hdf import *
 
 
-def create_model_item(ras_geom_hdf_url: str, simplify: float = 100.0) -> pystac.Item:
+def create_model_item(
+    ras_geom_hdf_url: str, simplify: float = 100.0, dev_mode: bool = False
+) -> pystac.Item:
     """
     This function creates a STAC (SpatioTemporal Asset Catalog) item from a given HDF (Hierarchical Data Format)
     file URL.
@@ -41,13 +43,15 @@ def create_model_item(ras_geom_hdf_url: str, simplify: float = 100.0) -> pystac.
     9. Returns the created STAC item.
     """
     if Path(ras_geom_hdf_url).suffix != ".hdf":
-        raise ValueError(f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}")
+        raise ValueError(
+            f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}"
+        )
 
     ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
 
     logging.info(f"Creating STAC item for model {ras_model_name}")
 
-    ras_hdf = RasGeomHdf.open_url(ras_geom_hdf_url)
+    ras_hdf = RasGeomHdf.open_url(ras_geom_hdf_url, dev_mode=dev_mode)
     perimeter = ras_hdf.get_2d_flow_area_perimeter(simplify=simplify)
     properties = ras_hdf.get_geom_attrs()
     geometry_time = properties.get("geometry:geometry_time")
@@ -209,7 +213,9 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     return {"roles": roles, "description": description, "title": title}
 
 
-def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str) -> dict:
+def get_simulation_metadata(
+    ras_plan_hdf_url: str, simulation: str, dev_mode: bool = False
+) -> dict:
     """
     This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
 
@@ -232,7 +238,14 @@ def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str) -> dict:
       them. If an exception occurs, it logs an error and returns.
     6. Returns the `metadata` dictionary.
     """
-    s3f = fsspec.open(ras_plan_hdf_url, mode="rb")
+    if dev_mode:
+        s3f = fsspec.open(
+            ras_plan_hdf_url,
+            client_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
+            mode="rb",
+        )
+    else:
+        s3f = fsspec.open(ras_plan_hdf_url, mode="rb")
     metadata = {
         "ras:simulation": simulation,
     }
@@ -257,7 +270,9 @@ def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str) -> dict:
     return metadata
 
 
-def create_model_simulation_item(ras_item: pystac.Item, results_meta: dict, model_sim_id: str) -> pystac.Item:
+def create_model_simulation_item(
+    ras_item: pystac.Item, results_meta: dict, model_sim_id: str
+) -> pystac.Item:
     """
     This function creates a PySTAC Item for a model simulation.
 
