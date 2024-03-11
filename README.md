@@ -8,8 +8,11 @@ This repository contains code for developing STAC items from HEC-RAS models. Cur
 
 ## Getting Started
 
-1. For local development, create a `.env` file using the `example.env` file. These credentials will be passed to a minio container (via the docker-compose file) running on http://localhost:9001/browser.
+1. For local development, create a `.env` file using the `example.env` file.
 
-2. In your browser, enter the username and password from the .env and create a bucket (in this example, name the bucket `ffrd-pilot`).
+2. Start a minio service and load data using the [cloud-mock](https://github.com/fema-ffrd/cloud-mock) repository.
 
-3. 
+3. Run the `populate-sample-data.sh` script to test set-up, connetivity, and view a sample stac catalog created using this library.
+
+
+**NOTE** It is recommended that ras-stac not be run in a container for testing and development due to networking issues that complicate use of these tools, when using minio. 
