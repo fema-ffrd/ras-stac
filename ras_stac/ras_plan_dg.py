@@ -1,15 +1,15 @@
 import logging
 import sys
-from utils.s3_utils import *
-from utils.dg_utils import *
-from utils.ras_stac import *
+from .utils.s3_utils import *
+from .utils.dg_utils import *
+from .utils.ras_stac import *
 from pathlib import Path
 from rasterio.session import AWSSession
 from dotenv import find_dotenv, load_dotenv
 import numpy as np
-from utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
+from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
 from papipyplug import parse_input, plugin_logger, print_results
-from utils.dg_utils import create_depth_grid_item
+from .utils.dg_utils import create_depth_grid_item
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -34,8 +34,12 @@ def new_plan_dg_item(
     logging.info("Creating plan item")
     verify_safe_prefix(new_dg_item_s3_key)
 
-    dg_item_public_url = s3_key_public_url_converter(new_dg_item_s3_key, dev_mode=dev_mode)
-    plan_item_public_url = s3_key_public_url_converter(plan_item_s3_key, dev_mode=dev_mode)
+    dg_item_public_url = s3_key_public_url_converter(
+        new_dg_item_s3_key, dev_mode=dev_mode
+    )
+    plan_item_public_url = s3_key_public_url_converter(
+        plan_item_s3_key, dev_mode=dev_mode
+    )
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_dg)
@@ -55,7 +59,6 @@ def new_plan_dg_item(
     dg_item = create_depth_grid_item(dg_obj, dg_id, AWS_SESSION, dev_mode=dev_mode)
     dg_item.properties.update(item_props)
     dg_item.add_derived_from(plan_item)
-
 
     for asset_file in asset_list:
         _, asset_key = split_s3_key(asset_file)
