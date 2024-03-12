@@ -16,12 +16,10 @@ if __name__ == "__main__":
     catalog_s3_uri = f"{endpoint_url}/{bucket_name}/{catalog_key}"
     catalog = pystac.Catalog.from_file(catalog_s3_uri)
 
-
     item_public_uri = f"{endpoint_url}/{bucket_name}/{item_key_to_add_to_catalog}"
 
     item = pystac.Item.from_file(item_public_uri)
 
-    
     item.set_parent(catalog)
     catalog.add_item(item)
 
@@ -42,5 +40,7 @@ if __name__ == "__main__":
 
     s3_client = session.client("s3", endpoint_url=endpoint_url)
     s3_client.put_object(
-        Body=json.dumps(item.to_dict()).encode(), Bucket=bucket_name, Key=item_key_to_add_to_catalog
+        Body=json.dumps(item.to_dict()).encode(),
+        Bucket=bucket_name,
+        Key=item_key_to_add_to_catalog,
     )
