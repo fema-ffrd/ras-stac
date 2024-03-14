@@ -9,5 +9,5 @@
         "cloud_wat:realization": "testig",
         "cloud_wat:simulation": "1"
     },
-    "ras_assets": "s3://pilot/runs/100/Stochastic_Greenbri/rasoutput.log"
+    "asset_list": ["s3://pilot/runs/100/rasoutput.log"]
 }
