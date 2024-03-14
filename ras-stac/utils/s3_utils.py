@@ -1,5 +1,6 @@
 from mypy_boto3_s3.service_resource import ObjectSummary
 import boto3
+import botocore
 import os
 import json
 
@@ -19,15 +20,19 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
     Returns:
         dict: A dictionary with the size, ETag, last modified date, storage platform, region, and storage tier of the object.
     """
-    _ = obj.load()
-    return {
-        "file:size": obj.content_length,
-        "e_tag": obj.e_tag.strip('"'),
-        "last_modified": obj.last_modified.isoformat(),
-        "storage:platform": "AWS",
-        "storage:region": obj.meta.client.meta.region_name,
-        "storage:tier": obj.storage_class,
-    }
+    try:
+        _ = obj.load()
+        return {
+            "file:size": obj.content_length,
+            "e_tag": obj.e_tag.strip('"'),
+            "last_modified": obj.last_modified.isoformat(),
+            "storage:platform": "AWS",
+            "storage:region": obj.meta.client.meta.region_name,
+            "storage:tier": obj.storage_class,
+        }
+    except botocore.exceptions.ClientError:
+        raise KeyError(f"Unable to access {obj.key} check that key exists and you have access")
+
 
 
 def copy_item_to_s3(item, s3_key, s3client):
