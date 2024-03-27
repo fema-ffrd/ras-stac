@@ -3,6 +3,8 @@
 set -a
 source .env
 set +a
+set -e
+
 
 # Create a ras-geometry item
 echo "Creating geometry_item...."
