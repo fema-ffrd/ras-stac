@@ -12,9 +12,12 @@ import boto3
 from io import BytesIO
 import os
 import logging
+from dotenv import load_dotenv, find_dotenv
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
+
+load_dotenv(find_dotenv())
 
 
 def to_snake_case(text):

@@ -1,14 +1,15 @@
 import logging
-from utils.s3_utils import *
-from utils.ras_hdf import *
-from utils.ras_stac import *
+from .utils.s3_utils import *
+from .utils.ras_hdf import *
+from .utils.ras_stac import *
 
 from dotenv import find_dotenv, load_dotenv
 import numpy as np
-from utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
+from .utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
 import logging
 import sys
 from papipyplug import parse_input, plugin_logger, print_results
+from dotenv import load_dotenv, find_dotenv
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -19,6 +20,8 @@ logging.basicConfig(
     format="""{"time": "%(asctime)s" , "level": "%(levelname)s", "message": "%(message)s"}""",
     handlers=[logging.StreamHandler()],
 )
+
+load_dotenv(find_dotenv())
 
 
 def new_geom_item(
@@ -31,8 +34,8 @@ def new_geom_item(
     simplify: int = 100,
     dev_mode=False,
 ):
-    logging.info("Creating geom item")
     verify_safe_prefix(new_item_s3_key)
+    logging.info(f"Creating geom item: {new_item_s3_key}")
     item_public_url = s3_key_public_url_converter(new_item_s3_key, dev_mode=dev_mode)
     logging.debug(f"item_public_url: {item_public_url}")
 
@@ -40,7 +43,7 @@ def new_geom_item(
     bucket_name, _ = split_s3_key(geom_hdf)
     other_assets.append(geom_hdf)
 
-    _, s3_client, s3_resource = init_s3_resources(dev_mode)
+    _, s3_client, s3_resource = init_s3_resources(dev_mode=dev_mode)
     bucket = s3_resource.Bucket(bucket_name)
 
     # Create geometry ite,
@@ -61,7 +64,11 @@ def new_geom_item(
             _, asset_key = split_s3_key(asset_file)
             logging.info(f"Adding asset {asset_file} to item")
             obj = bucket.Object(asset_key)
-            metadata = get_basic_object_metadata(obj)
+            try:
+                metadata = get_basic_object_metadata(obj)
+            except:
+                logging.error(f"unable to fetch metadata for :{obj}")
+                metadata = {}
             asset_info = ras_geom_asset_info(asset_file, asset_type)
             asset = pystac.Asset(
                 s3_key_public_url_converter(asset_file, dev_mode=dev_mode),
