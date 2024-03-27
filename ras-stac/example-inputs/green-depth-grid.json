@@ -1,0 +1,11 @@
+{
+    "plan_dg": "s3://pilot/dgs/grid_341.tif",
+    "new_dg_item_s3_key": "s3://pilot/stac/Greenbrier/Greenbrier.p01.dg.json",
+    "plan_item_s3_key": "s3://pilot/stac/Greenbrier/Greenbrier.p01.hdf.json",
+    "dg_id": "BluestoneLocal.p01-grid_96",
+    "item_props": {
+        "cloud_wat:version": "dev",
+        "cloud_wat:realization": "1",
+        "cloud_wat:simulation": "10"
+    }
+}

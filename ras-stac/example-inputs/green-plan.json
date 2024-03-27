@@ -1,0 +1,13 @@
+{
+    "plan_hdf": "s3://pilot/runs/100/Stochastic_Greenbri.p01.hdf",
+    "new_plan_item_s3_key": "s3://pilot/stac/Greenbrier/Greenbrier.p01.hdf.json",
+    "geom_item_s3_key": "s3://pilot/stac/Greenbrier/Greenbrier.g01.hdf.json",
+    "sim_id": "Greenbrier-100",
+    "item_props": {
+        "cloud_wat:version": "v0.0.1",
+        "cloud_wat:phase": "ressim-testing",
+        "cloud_wat:realization": "testig",
+        "cloud_wat:simulation": "1"
+    },
+    "asset_list": ["s3://pilot/runs/100/rasoutput.log"]
+}
