@@ -5,9 +5,12 @@ import os
 import json
 
 import logging
+from dotenv import load_dotenv, find_dotenv
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
+
+load_dotenv(find_dotenv())
 
 
 def get_basic_object_metadata(obj: ObjectSummary) -> dict:
@@ -50,6 +53,7 @@ def copy_item_to_s3(item, s3_key, s3client):
     """
     # s3 = boto3.client("s3")
     bucket, key = split_s3_key(s3_key)
+
     s3client.put_object(
         Body=json.dumps(item.to_dict()).encode(), Bucket=bucket, Key=key
     )
@@ -156,9 +160,43 @@ def init_s3_resources(dev_mode: bool = False):
         # Instantitate S3 resources
         session = boto3.Session(
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.environ.get("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
         )
 
         s3_client = session.client("s3")
         s3_resource = session.resource("s3")
         return session, s3_client, s3_resource
+
+
+def list_keys(s3_client, bucket, prefix, suffix=""):
+    keys = []
+    kwargs = {"Bucket": bucket, "Prefix": prefix}
+    while True:
+        resp = s3_client.list_objects_v2(**kwargs)
+        keys += [obj["Key"] for obj in resp["Contents"] if obj["Key"].endswith(suffix)]
+        try:
+            kwargs["ContinuationToken"] = resp["NextContinuationToken"]
+        except KeyError:
+            break
+    return keys
+
+
+import re
+
+
+def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):
+    keys = []
+    kwargs = {"Bucket": bucket, "Prefix": prefix_includes}
+    prefix_pattern = re.compile(prefix_includes.replace("*", ".*"))
+    while True:
+        resp = s3_client.list_objects_v2(**kwargs)
+        keys += [
+            obj["Key"]
+            for obj in resp["Contents"]
+            if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
+        ]
+        try:
+            kwargs["ContinuationToken"] = resp["NextContinuationToken"]
+        except KeyError:
+            break
+    return keys
