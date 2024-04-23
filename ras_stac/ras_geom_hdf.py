@@ -2,7 +2,6 @@ import logging
 from .utils.s3_utils import *
 from .utils.ras_hdf import *
 from .utils.ras_stac import *
-from .rashdf.src.rashdf import geom
 
 from dotenv import find_dotenv, load_dotenv
 import numpy as np
