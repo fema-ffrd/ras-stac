@@ -11,12 +11,12 @@ RUN pip3 install -r requirements.txt
 WORKDIR /plugins
 
 # Copy plugin utils
-COPY ras-stac/utils utils
+COPY ras_stac/utils utils
 
 # Copy plugin functions
-COPY ras-stac/ras_geom_hdf.py .
-COPY ras-stac/ras_plan_hdf.py .
-COPY ras-stac/ras_plan_dg.py .
+COPY ras_stac/ras_geom_hdf.py .
+COPY ras_stac/ras_plan_hdf.py .
+COPY ras_stac/ras_plan_dg.py .
 
 # Copy plugin main functions
-COPY ras-stac/plugins .
+COPY ras_stac/plugins .

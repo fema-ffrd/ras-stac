@@ -1,11 +1,11 @@
 import logging
-from .utils.s3_utils import *
-from .utils.ras_hdf import *
-from .utils.ras_stac import *
+from utils.s3_utils import *
+from utils.ras_hdf import *
+from utils.ras_stac import *
 
 from dotenv import find_dotenv, load_dotenv
 import numpy as np
-from .utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
+from utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
 import logging
 import sys
 from papipyplug import parse_input, plugin_logger, print_results

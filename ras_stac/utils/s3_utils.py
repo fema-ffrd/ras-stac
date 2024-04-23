@@ -53,7 +53,6 @@ def copy_item_to_s3(item, s3_key, s3client):
     """
     # s3 = boto3.client("s3")
     bucket, key = split_s3_key(s3_key)
-    print(bucket, key)
 
     s3client.put_object(
         Body=json.dumps(item.to_dict()).encode(), Bucket=bucket, Key=key
