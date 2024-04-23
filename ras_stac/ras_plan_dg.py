@@ -1,15 +1,15 @@
 import logging
 import sys
-from utils.s3_utils import *
-from utils.dg_utils import *
-from utils.ras_stac import *
+from .utils.s3_utils import *
+from .utils.dg_utils import *
+from .utils.ras_stac import *
 from pathlib import Path
 from rasterio.session import AWSSession
 from dotenv import find_dotenv, load_dotenv
 import numpy as np
-from utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
+from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
 from papipyplug import parse_input, plugin_logger, print_results
-from utils.dg_utils import create_depth_grid_item
+from .utils.dg_utils import create_depth_grid_item
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
