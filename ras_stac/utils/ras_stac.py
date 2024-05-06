@@ -1,6 +1,9 @@
 import pystac
 import json
-from datetime import datetime
+from typing import List
+import os
+import fsspec
+from rashdf import RasPlanHdf, RasGeomHdf
 from pathlib import Path
 import re
 
@@ -12,16 +15,14 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 from .ras_hdf import *
 
 
-def create_model_item(
-    ras_geom_hdf_url: str, simplify: float = 100.0, dev_mode: bool = False
-) -> pystac.Item:
+def create_model_item(ras_geom_hdf_url: str, props_to_remove: List, dev_mode: bool = False) -> pystac.Item:
     """
     This function creates a STAC (SpatioTemporal Asset Catalog) item from a given HDF (Hierarchical Data Format)
     file URL.
 
     Parameters:
     ras_geom_hdf_url (str): The URL of the HDF file.
-    simplify (float): The factor to simplify the 2D flow area perimeter. Default is 100.0.
+    props_to_remove (List): List of properties to be removed from item.
 
     Returns:
     pystac.Item: The created STAC item.
@@ -33,35 +34,47 @@ def create_model_item(
     1. Checks if the provided URL has a '.hdf' suffix. If not, it raises a ValueError.
     2. Extracts the model name from the URL by removing the '.hdf' suffix and getting the stem of the path.
     3. Logs the creation of the STAC item for the model.
-    4. Opens the HDF file from the URL using the `RasGeomHdf.open_url` method.
+    4. Opens the HDF file from the URL using the `RasGeomHdf.open_uri` method.
     5. Gets the perimeter of the 2D flow area from the HDF file and simplifies it using the provided `simplify`
       parameter.
     6. Gets the attributes of the geometry from the HDF file.
     7. Extracts the geometry time from the properties.
-    8. Creates a new STAC item with the model ID, the geometry converted to GeoJSON, the bounding box of the perimeter,
-      the geometry time converted to a datetime object, and the properties.
-    9. Returns the created STAC item.
+    8. Removes unwanted properties.
+    9. Creates a new STAC item with the model ID, the geometry converted to GeoJSON, the bounding box of the perimeter, and the properties.
+    10. Returns the created STAC item.
     """
     if Path(ras_geom_hdf_url).suffix != ".hdf":
-        raise ValueError(
-            f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}"
-        )
+        raise ValueError(f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}")
 
     ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
 
     logging.info(f"Creating STAC item for model {ras_model_name}")
-
-    ras_hdf = RasGeomHdf.open_url(ras_geom_hdf_url, dev_mode=dev_mode)
-    perimeter = ras_hdf.get_2d_flow_area_perimeter(simplify=simplify)
-    properties = ras_hdf.get_geom_attrs()
+    if dev_mode:
+        ras_hdf = RasGeomHdf.open_uri(
+            ras_geom_hdf_url, fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")}
+        )
+    else:
+        ras_hdf = RasGeomHdf.open_uri(ras_geom_hdf_url)
+    perimeter = ras_hdf.mesh_areas()
+    perimeter = perimeter.to_crs("EPSG:4326")
+    perimeter_polygon = perimeter.geometry.unary_union
+    properties = get_stac_geom_attrs(ras_hdf)
     geometry_time = properties.get("geometry:geometry_time")
+
+    # Remove unwanted properties
+    for prop in props_to_remove:
+        try:
+            del properties[prop]
+        except KeyError:
+            logging.warning(f"property {prop} not found")
+
     model_id = ras_model_name
 
     item = pystac.Item(
         id=model_id,
-        geometry=json.loads(shapely.to_geojson(perimeter)),
-        bbox=perimeter.bounds,
-        datetime=datetime.fromisoformat(geometry_time),
+        geometry=json.loads(shapely.to_geojson(perimeter_polygon)),
+        bbox=perimeter_polygon.bounds,
+        datetime=geometry_time,
         properties=properties,
     )
     return item
@@ -213,9 +226,7 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     return {"roles": roles, "description": description, "title": title}
 
 
-def get_simulation_metadata(
-    ras_plan_hdf_url: str, simulation: str, dev_mode: bool = False
-) -> dict:
+def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str, dev_mode: bool = False) -> dict:
     """
     This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
 
@@ -251,18 +262,18 @@ def get_simulation_metadata(
     }
 
     try:
-        plan_hdf = RasPlanHdf(s3f.open(), mode="r")
+        plan_hdf = RasPlanHdf(s3f.open())
     except FileNotFoundError as e:
         return logging.error(f"file not found: {ras_plan_hdf_url}")
 
     try:
-        plan_attrs = plan_hdf.get_plan_attrs()
+        plan_attrs = get_stac_plan_attrs(plan_hdf)
         metadata.update(plan_attrs)
     except Exception as e:
         return logging.error(f"unable to extract plan_attrs: {e}")
 
     try:
-        results_attrs = plan_hdf.get_plan_results_attrs()
+        results_attrs = get_stac_plan_results_attrs(plan_hdf)
         metadata.update(results_attrs)
     except Exception as e:
         return logging.error(f"unable to extract results_attrs: {e}")
@@ -271,7 +282,7 @@ def get_simulation_metadata(
 
 
 def create_model_simulation_item(
-    ras_item: pystac.Item, results_meta: dict, model_sim_id: str
+    ras_item: pystac.Item, results_meta: dict, model_sim_id: str, item_props_to_remove: List
 ) -> pystac.Item:
     """
     This function creates a PySTAC Item for a model simulation.
@@ -280,21 +291,29 @@ def create_model_simulation_item(
         ras_item (pystac.Item): The PySTAC Item of the RAS model.
         results_meta (dict): The metadata of the simulation results.
         model_sim_id (str): The ID of the model simulation.
+        item_props_to_remove (List): List of properties to be removed from the item.
 
     Returns:
         pystac.Item: A PySTAC Item for the model simulation.
 
     The function performs the following steps:
     1. Retrieves the runtime window from the `results_meta` dictionary.
-    2. Converts the start and end times of the runtime window from ISO format to datetime objects.
+    2. Removes unwanted properties.
     3. Creates a PySTAC Item with the ID being the `model_sim_id`, the geometry and the bounding box being those of
       the `ras_item`, the start and end datetimes being the converted start and end times of the runtime window,
-      the datetime being the start datetime, and the properties being the `results_meta`.
+      the datetime being the start datetime, and the properties being the `results_meta` with unwanted properties removed.
     4. Returns the created PySTAC Item.
     """
     runtime_window = results_meta.get("results_summary:run_time_window")
-    start_datetime = datetime.fromisoformat(runtime_window[0])
-    end_datetime = datetime.fromisoformat(runtime_window[1])
+    start_datetime = runtime_window[0]
+    end_datetime = runtime_window[1]
+
+    for prop in item_props_to_remove:
+        try:
+            del results_meta[prop]
+        except KeyError:
+            logging.warning(f"property {prop} not found")
+
     item = pystac.Item(
         id=model_sim_id,
         geometry=ras_item.geometry,
