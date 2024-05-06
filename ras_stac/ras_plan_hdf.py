@@ -28,6 +28,7 @@ def new_plan_item(
     sim_id: str,
     asset_list: list = None,
     item_props: dict = None,
+    item_props_to_remove: List = None,
     dev_mode: bool = False,
 ):
     verify_safe_prefix(new_plan_item_s3_key)
@@ -53,7 +54,10 @@ def new_plan_item(
 
     try:
         logging.info("creating plan item")
-        plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id)
+        if item_props_to_remove is not None:
+            plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, item_props_to_remove)
+        else:
+            plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
     except TypeError:
         return logging.error("unable to retrieve model results. please verify plan was executed and results exist")
 
@@ -73,12 +77,6 @@ def new_plan_item(
                 description=asset_info["description"],
             )
             plan_item.add_asset(asset_info["title"], asset)
-
-    for prop in PLAN_HDF_IGNORE_PROPERTIES:
-        try:
-            del plan_item.properties[prop]
-        except KeyError:
-            logging.warning(f"property {prop} not found")
 
     logging.info("Writing geom item to s3")
     plan_item.set_self_href(plan_item_public_url)
@@ -114,6 +112,7 @@ def main(params: dict, dev_mode=False):
     # Optional parameters
     asset_list = params.get("asset_list", [])
     plan_item_props = params.get("item_props", {})
+    item_props_to_remove = params.get("item_props_to_remove", [])
 
     return new_plan_item(
         plan_hdf,
@@ -122,6 +121,7 @@ def main(params: dict, dev_mode=False):
         sim_id,
         asset_list,
         plan_item_props,
+        item_props_to_remove,
         dev_mode,
     )
 

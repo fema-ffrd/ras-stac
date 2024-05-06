@@ -31,7 +31,8 @@ def new_geom_item(
     lulc_assets: list = None,
     mannings_assets: list = None,
     other_assets: list = None,
-    simplify: int = 100,
+    item_props_to_remove: List = None,
+    item_props_to_add: dict = None,
     dev_mode=False,
 ):
     verify_safe_prefix(new_item_s3_key)
@@ -46,9 +47,14 @@ def new_geom_item(
     _, s3_client, s3_resource = init_s3_resources(dev_mode=dev_mode)
     bucket = s3_resource.Bucket(bucket_name)
 
-    # Create geometry ite,
-    item = create_model_item(geom_hdf, simplify=simplify, dev_mode=dev_mode)
+    # Create geometry item
+    if item_props_to_remove is not None:
+        item = create_model_item(geom_hdf, item_props_to_remove, dev_mode=dev_mode)
+    else:
+        item = create_model_item(geom_hdf, GEOM_HDF_IGNORE_PROPERTIES, dev_mode=dev_mode)
 
+    if item_props_to_add:
+        item.properties.update(item_props_to_add)
     # Create list of assets to add to item
     geom_assets = new_geom_assets(
         topo_assets=topo_assets,
@@ -77,13 +83,6 @@ def new_geom_item(
                 description=asset_info["description"],
             )
             item.add_asset(asset_info["title"], asset)
-
-    # Remove unwanted properties
-    for prop in GEOM_HDF_IGNORE_PROPERTIES:
-        try:
-            del item.properties[prop]
-        except KeyError:
-            logging.warning(f"property {prop} not found")
 
     # Transform cell size properties to square root of area
     for prop in [
@@ -130,7 +129,8 @@ def main(params: dict, dev_mode=False):
     lulc_assets = params.get("lulc_assets", [])
     mannings_assets = params.get("mannings_assets", [])
     other_assets = params.get("other_assets", [])
-    simplify = params.get("simplify", 100)
+    item_props_to_remove = params.get("item_props_to_remove", [])
+    item_props_to_add = params.get("item_props", {})
 
     return new_geom_item(
         geom_hdf,
@@ -139,7 +139,8 @@ def main(params: dict, dev_mode=False):
         lulc_assets,
         mannings_assets,
         other_assets,
-        simplify,
+        item_props_to_remove,
+        item_props_to_add,
         dev_mode,
     )
 
