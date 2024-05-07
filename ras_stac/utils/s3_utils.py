@@ -91,7 +91,7 @@ def split_s3_key(s3_key: str) -> tuple[str, str]:
     return bucket, key
 
 
-def s3_key_public_url_converter(url: str, dev_mode: bool = False) -> str:
+def s3_key_public_url_converter(url: str, minio_mode: bool = False) -> str:
     """
     This function converts an S3 URL to an HTTPS URL and vice versa.
 
@@ -111,15 +111,15 @@ def s3_key_public_url_converter(url: str, dev_mode: bool = False) -> str:
     if url.startswith("s3"):
         bucket = url.replace("s3://", "").split("/")[0]
         key = url.replace(f"s3://{bucket}", "")[1:]
-        if dev_mode:
-            logging.info(f"dev_mode | using minio endpoint for s3 url conversion: {url}")
+        if minio_mode:
+            logging.info(f"minio_mode | using minio endpoint for s3 url conversion: {url}")
             return f"{os.environ.get('MINIO_S3_ENDPOINT')}/{bucket}/{key}"
         else:
             return f"https://{bucket}.s3.amazonaws.com/{key}"
 
     elif url.startswith("http"):
-        if dev_mode:
-            logging.info(f"dev_mode | using minio endpoint for s3 url conversion: {url}")
+        if minio_mode:
+            logging.info(f"minio_mode | using minio endpoint for s3 url conversion: {url}")
             bucket = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "").split("/")[0]
             key = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "")
         else:
@@ -143,8 +143,8 @@ def verify_safe_prefix(s3_key: str):
         raise ValueError(f"prefix must begin with stac/, user provided {s3_key} needs to be corrected")
 
 
-def init_s3_resources(dev_mode: bool = False):
-    if dev_mode:
+def init_s3_resources(minio_mode: bool = False):
+    if minio_mode:
         session = boto3.Session(
             aws_access_key_id=os.environ.get("MINIO_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),

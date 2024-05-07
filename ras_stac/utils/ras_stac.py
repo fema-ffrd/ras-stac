@@ -15,7 +15,7 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 from .ras_hdf import *
 
 
-def create_model_item(ras_geom_hdf_url: str, props_to_remove: List, dev_mode: bool = False) -> pystac.Item:
+def create_model_item(ras_geom_hdf_url: str, props_to_remove: List, minio_mode: bool = False) -> pystac.Item:
     """
     This function creates a STAC (SpatioTemporal Asset Catalog) item from a given HDF (Hierarchical Data Format)
     file URL.
@@ -49,7 +49,7 @@ def create_model_item(ras_geom_hdf_url: str, props_to_remove: List, dev_mode: bo
     ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
 
     logging.info(f"Creating STAC item for model {ras_model_name}")
-    if dev_mode:
+    if minio_mode:
         ras_hdf = RasGeomHdf.open_uri(
             ras_geom_hdf_url, fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")}
         )
@@ -226,7 +226,7 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     return {"roles": roles, "description": description, "title": title}
 
 
-def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str, dev_mode: bool = False) -> dict:
+def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str, minio_mode: bool = False) -> dict:
     """
     This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
 
@@ -249,7 +249,7 @@ def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str, dev_mode: bo
       them. If an exception occurs, it logs an error and returns.
     6. Returns the `metadata` dictionary.
     """
-    if dev_mode:
+    if minio_mode:
         s3f = fsspec.open(
             ras_plan_hdf_url,
             client_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
