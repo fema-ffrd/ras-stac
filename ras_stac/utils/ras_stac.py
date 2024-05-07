@@ -15,7 +15,9 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 from .ras_hdf import *
 
 
-def create_model_item(ras_geom_hdf_url: str, props_to_remove: List, minio_mode: bool = False) -> pystac.Item:
+def create_model_item(
+    ras_geom_hdf_url: str, props_to_remove: List, simplify: float = None, minio_mode: bool = False
+) -> pystac.Item:
     """
     This function creates a STAC (SpatioTemporal Asset Catalog) item from a given HDF (Hierarchical Data Format)
     file URL.
@@ -57,7 +59,10 @@ def create_model_item(ras_geom_hdf_url: str, props_to_remove: List, minio_mode: 
         ras_hdf = RasGeomHdf.open_uri(ras_geom_hdf_url)
     perimeter = ras_hdf.mesh_areas()
     perimeter = perimeter.to_crs("EPSG:4326")
-    perimeter_polygon = perimeter.geometry.unary_union
+    if simplify:
+        perimeter_polygon = perimeter.geometry.unary_union.simplify(tolerance=simplify)
+    else:
+        perimeter_polygon = perimeter.geometry.unary_union
     properties = get_stac_geom_attrs(ras_hdf)
     geometry_time = properties.get("geometry:geometry_time")
 
