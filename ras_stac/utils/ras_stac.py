@@ -71,7 +71,7 @@ def create_model_item(
         try:
             del properties[prop]
         except KeyError:
-            logging.warning(f"property {prop} not found")
+            logging.warning(f"Failed removing {prop}, property not found")
 
     model_id = ras_model_name
 
@@ -275,13 +275,13 @@ def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str, minio_mode: 
         plan_attrs = get_stac_plan_attrs(plan_hdf)
         metadata.update(plan_attrs)
     except Exception as e:
-        return logging.error(f"unable to extract plan_attrs: {e}")
+        return logging.error(f"unable to extract plan_attrs from {ras_plan_hdf_url}: {e}")
 
     try:
         results_attrs = get_stac_plan_results_attrs(plan_hdf)
         metadata.update(results_attrs)
     except Exception as e:
-        return logging.error(f"unable to extract results_attrs: {e}")
+        return logging.error(f"unable to extract results_attrs from {ras_plan_hdf_url}: {e}")
 
     return metadata
 
@@ -317,7 +317,7 @@ def create_model_simulation_item(
         try:
             del results_meta[prop]
         except KeyError:
-            logging.warning(f"property {prop} not found")
+            logging.warning(f"Failed to remove property:{prop} not found in simulation results metadata.")
 
     item = pystac.Item(
         id=model_sim_id,

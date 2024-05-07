@@ -46,9 +46,8 @@ def new_geom_item(
 
     _, s3_client, s3_resource = init_s3_resources(minio_mode=minio_mode)
     bucket = s3_resource.Bucket(bucket_name)
-
     # Create geometry item
-    if item_props_to_remove is not None:
+    if item_props_to_remove:
         item = create_model_item(geom_hdf, item_props_to_remove, minio_mode=minio_mode)
     else:
         item = create_model_item(geom_hdf, GEOM_HDF_IGNORE_PROPERTIES, minio_mode=minio_mode)

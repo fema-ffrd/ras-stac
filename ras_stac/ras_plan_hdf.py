@@ -54,12 +54,14 @@ def new_plan_item(
 
     try:
         logging.info("creating plan item")
-        if item_props_to_remove is not None:
+        if item_props_to_remove:
             plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, item_props_to_remove)
         else:
             plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
     except TypeError:
-        return logging.error("unable to retrieve model results. please verify plan was executed and results exist")
+        return logging.error(
+            f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata from {plan_hdf}. please verify plan was executed and results exist"
+        )
 
     plan_item.add_derived_from(geom_item)
     plan_item.properties.update(item_props)

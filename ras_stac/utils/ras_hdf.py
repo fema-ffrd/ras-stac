@@ -74,22 +74,29 @@ def get_stac_plan_attrs(ras_hdf: RasPlanHdf, include_results: bool = False) -> d
         stac_plan_attrs = prep_stac_attrs(stac_plan_attrs)
     else:
         stac_plan_attrs = {}
+        logging.warning("No root attributes found.")
 
     plan_info_attrs = ras_hdf.get_plan_info_attrs()
     if plan_info_attrs is not None:
         plan_info_stac_attrs = prep_stac_attrs(plan_info_attrs, prefix="Plan Information")
         stac_plan_attrs.update(plan_info_stac_attrs)
+    else:
+        logging.warning("No plan information attributes found.")
 
     plan_params_attrs = ras_hdf.get_plan_param_attrs()
     if plan_params_attrs is not None:
         plan_params_stac_attrs = prep_stac_attrs(plan_params_attrs, prefix="Plan Parameters")
         stac_plan_attrs.update(plan_params_stac_attrs)
+    else:
+        logging.warning("No plan parameters attributes found.")
 
     precip_attrs = ras_hdf.get_meteorology_precip_attrs()
     if precip_attrs is not None:
         precip_stac_attrs = prep_stac_attrs(precip_attrs, prefix="Meteorology")
         precip_stac_attrs.pop("meteorology:projection", None)
         stac_plan_attrs.update(precip_stac_attrs)
+    else:
+        logging.warning("No meteorology precipitation attributes found.")
 
     if include_results:
         stac_plan_attrs.update(get_stac_plan_results_attrs(ras_hdf))
@@ -114,6 +121,8 @@ def get_stac_plan_results_attrs(ras_hdf: RasPlanHdf):
     if unsteady_results_attrs is not None:
         unsteady_results_stac_attrs = prep_stac_attrs(unsteady_results_attrs, prefix="Unsteady Results")
         results_attrs.update(unsteady_results_stac_attrs)
+    else:
+        logging.warning("No unsteady results attributes found.")
 
     summary_attrs = ras_hdf.get_results_unsteady_summary_attrs()
     if summary_attrs is not None:
@@ -128,24 +137,28 @@ def get_stac_plan_results_attrs(ras_hdf: RasPlanHdf):
             computation_time_total_minutes = parse_duration(computation_time_total).total_seconds() / 60
             results_summary["results_summary:computation_time_total_minutes"] = computation_time_total_minutes
         results_attrs.update(results_summary)
+    else:
+        logging.warning("No unsteady results summary attributes found.")
 
     volume_accounting_attrs = ras_hdf.get_results_volume_accounting_attrs()
     if volume_accounting_attrs is not None:
         volume_accounting_stac_attrs = prep_stac_attrs(volume_accounting_attrs, prefix="Volume Accounting")
         results_attrs.update(volume_accounting_stac_attrs)
+    else:
+        logging.warning("No results volume accounting attributes found.")
 
     return results_attrs
 
 
 def get_stac_geom_attrs(ras_hdf: RasGeomHdf):
     """
-    This function retrieves the geometry attributes of a HEC-RAS plan HDF file, converting them to STAC format.
+    This function retrieves the geometry attributes of a HEC-RAS HDF file, converting them to STAC format.
 
     Parameters:
         ras_hdf (RasGeomHdf): An instance of RasGeomHdf which the geometry attributes will be retrieved from.
 
     Returns:
-        stac_geom_attrs (dict): A dictionary with the geometry attributes of the plan.
+        stac_geom_attrs (dict): A dictionary with the organized geometry attributes.
     """
 
     stac_geom_attrs = ras_hdf.get_root_attrs()
@@ -153,16 +166,21 @@ def get_stac_geom_attrs(ras_hdf: RasGeomHdf):
         stac_geom_attrs = prep_stac_attrs(stac_geom_attrs)
     else:
         stac_geom_attrs = {}
+        logging.warning("No root attributes found.")
 
     geom_attrs = ras_hdf.get_geom_attrs()
     if geom_attrs is not None:
         geom_stac_attrs = prep_stac_attrs(geom_attrs, prefix="Geometry")
         stac_geom_attrs.update(geom_stac_attrs)
+    else:
+        logging.warning("No base geometry attributes found.")
 
     structures_attrs = ras_hdf.get_geom_structures_attrs()
     if structures_attrs is not None:
         structures_stac_attrs = prep_stac_attrs(structures_attrs, prefix="Structures")
         stac_geom_attrs.update(structures_stac_attrs)
+    else:
+        logging.warning("No geometry structures attributes found.")
 
     d2_flow_area_attrs = ras_hdf.get_geom_2d_flow_area_attrs()
     if d2_flow_area_attrs is not None:
@@ -170,5 +188,10 @@ def get_stac_geom_attrs(ras_hdf: RasGeomHdf):
         cell_average_size = d2_flow_area_stac_attrs.get("2d_flow_area:cell_average_size", None)
         if cell_average_size is not None:
             d2_flow_area_stac_attrs["2d_flow_area:cell_average_length"] = cell_average_size**0.5
+        else:
+            logging.warning("Unable to add cell average size to attributes.")
         stac_geom_attrs.update(d2_flow_area_stac_attrs)
+    else:
+        logging.warning("No flow area attributes found.")
+
     return stac_geom_attrs
