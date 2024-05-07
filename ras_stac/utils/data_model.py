@@ -21,9 +21,7 @@ class RasStacInputs:
         """
         topo_assets = [f"s3://{self.source_bucket_name}/{a}" for a in topo_assets]
         lulc_assets = [f"s3://{self.source_bucket_name}/{a}" for a in lulc_assets]
-        mannings_assets = [
-            f"s3://{self.source_bucket_name}/{a}" for a in mannings_assets
-        ]
+        mannings_assets = [f"s3://{self.source_bucket_name}/{a}" for a in mannings_assets]
         other_assets = [f"s3://{self.source_bucket_name}/{a}" for a in other_assets]
 
         return {

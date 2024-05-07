@@ -36,9 +36,7 @@ def get_raster_bounds(
         Tuple[float, float, float, float]: The geographic bounds of the raster file in the WGS 84 (EPSG:4326) coordinate reference system. The bounds are returned as a tuple of four floats: (west, south, east, north).
     """
     if dev_mode:
-        with rasterio.open(
-            s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")
-        ) as src:
+        with rasterio.open(s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")) as src:
             bounds = src.bounds
             crs = src.crs
             bounds_4326 = rasterio.warp.transform_bounds(crs, "EPSG:4326", *bounds)
@@ -53,9 +51,7 @@ def get_raster_bounds(
                 return bounds_4326
 
 
-def get_raster_metadata(
-    s3_key: str, aws_session: AWSSession, dev_mode: bool = False
-) -> dict:
+def get_raster_metadata(s3_key: str, aws_session: AWSSession, dev_mode: bool = False) -> dict:
     """
     This function retrieves the metadata of a raster file stored in an AWS S3 bucket.
 
@@ -68,9 +64,7 @@ def get_raster_metadata(
         where the keys are the names of the metadata items and the values are the values of the metadata items.
     """
     if dev_mode:
-        with rasterio.open(
-            s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")
-        ) as src:
+        with rasterio.open(s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")) as src:
             return src.tags(1)
     else:
         with rasterio.Env(aws_session):
