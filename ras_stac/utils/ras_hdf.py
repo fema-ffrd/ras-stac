@@ -13,27 +13,6 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 load_dotenv(find_dotenv())
 
 
-def geom_to_4326(s: shapely.Geometry, proj_wkt: str) -> shapely.Geometry:
-    """
-    Convert a geometry to the WGS 84 coordinate reference system.
-
-    This function creates a transformer from the source coordinate reference system (CRS), specified by the
-    Well-Known Text (WKT) representation, to the WGS 84 CRS (EPSG:4326). It then applies this transformer to the
-    input geometry.
-
-    Parameters:
-        s (shapely.geometry.base.BaseGeometry): The input geometry.
-        proj_wkt (str): The WKT representation of the source CRS.
-
-    Returns:
-        shapely.geometry.base.BaseGeometry: The input geometry transformed to the WGS 84 CRS.
-    """
-    source_crs = pyproj.CRS.from_wkt(proj_wkt)
-    target_crs = pyproj.CRS.from_epsg(4326)
-    transformer = pyproj.Transformer.from_proj(source_crs, target_crs, always_xy=True)
-    return shapely.ops.transform(transformer.transform, s)
-
-
 def to_snake_case(text):
     """
     Convert a string to snake case, removing punctuation and other symbols.
