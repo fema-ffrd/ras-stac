@@ -64,6 +64,8 @@ def create_model_item(
     else:
         perimeter_polygon = perimeter.geometry.unary_union
     properties = get_stac_geom_attrs(ras_hdf)
+    if not properties:
+        raise AttributeError(f"Could not find properties from: {ras_geom_hdf_url}")
     geometry_time = properties.get("geometry:geometry_time")
 
     # Remove unwanted properties

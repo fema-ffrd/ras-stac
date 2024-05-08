@@ -51,17 +51,19 @@ def new_plan_item(
 
     logging.info("fetching plan metadata")
     plan_meta = get_simulation_metadata(plan_hdf, sim_id, minio_mode=minio_mode)
-
-    try:
-        logging.info("creating plan item")
-        if item_props_to_remove:
-            plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, item_props_to_remove)
-        else:
-            plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
-    except TypeError:
-        return logging.error(
-            f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata from {plan_hdf}. please verify plan was executed and results exist"
-        )
+    if plan_meta:
+        try:
+            logging.info("creating plan item")
+            if item_props_to_remove:
+                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, item_props_to_remove)
+            else:
+                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
+        except TypeError:
+            return logging.error(
+                f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata from {plan_hdf}. please verify plan was executed and results exist"
+            )
+    else:
+        raise AttributeError(f"No simulation metadata retrieved from {plan_hdf}")
 
     plan_item.add_derived_from(geom_item)
     plan_item.properties.update(item_props)
