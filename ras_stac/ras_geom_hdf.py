@@ -31,24 +31,29 @@ def new_geom_item(
     lulc_assets: list = None,
     mannings_assets: list = None,
     other_assets: list = None,
-    simplify: int = 100,
-    dev_mode=False,
+    item_props_to_remove: List = None,
+    item_props_to_add: dict = None,
+    minio_mode=False,
 ):
     verify_safe_prefix(new_item_s3_key)
     logging.info(f"Creating geom item: {new_item_s3_key}")
-    item_public_url = s3_key_public_url_converter(new_item_s3_key, dev_mode=dev_mode)
+    item_public_url = s3_key_public_url_converter(new_item_s3_key, minio_mode=minio_mode)
     logging.debug(f"item_public_url: {item_public_url}")
 
     # Prep parameters
     bucket_name, _ = split_s3_key(geom_hdf)
     other_assets.append(geom_hdf)
 
-    _, s3_client, s3_resource = init_s3_resources(dev_mode=dev_mode)
+    _, s3_client, s3_resource = init_s3_resources(minio_mode=minio_mode)
     bucket = s3_resource.Bucket(bucket_name)
+    # Create geometry item
+    if item_props_to_remove:
+        item = create_model_item(geom_hdf, item_props_to_remove, minio_mode=minio_mode)
+    else:
+        item = create_model_item(geom_hdf, GEOM_HDF_IGNORE_PROPERTIES, minio_mode=minio_mode)
 
-    # Create geometry ite,
-    item = create_model_item(geom_hdf, simplify=simplify, dev_mode=dev_mode)
-
+    if item_props_to_add:
+        item.properties.update(item_props_to_add)
     # Create list of assets to add to item
     geom_assets = new_geom_assets(
         topo_assets=topo_assets,
@@ -71,19 +76,12 @@ def new_geom_item(
                 metadata = {}
             asset_info = ras_geom_asset_info(asset_file, asset_type)
             asset = pystac.Asset(
-                s3_key_public_url_converter(asset_file, dev_mode=dev_mode),
+                s3_key_public_url_converter(asset_file, minio_mode=minio_mode),
                 extra_fields=metadata,
                 roles=asset_info["roles"],
                 description=asset_info["description"],
             )
             item.add_asset(asset_info["title"], asset)
-
-    # Remove unwanted properties
-    for prop in GEOM_HDF_IGNORE_PROPERTIES:
-        try:
-            del item.properties[prop]
-        except KeyError:
-            logging.warning(f"property {prop} not found")
 
     # Transform cell size properties to square root of area
     for prop in [
@@ -120,7 +118,7 @@ def new_geom_item(
     return results
 
 
-def main(params: dict, dev_mode=False):
+def main(params: dict, minio_mode=False):
     # Required parameters
     geom_hdf = params.get("geom_hdf", None)
     item_s3_key = params.get("new_item_s3_key", None)
@@ -130,7 +128,8 @@ def main(params: dict, dev_mode=False):
     lulc_assets = params.get("lulc_assets", [])
     mannings_assets = params.get("mannings_assets", [])
     other_assets = params.get("other_assets", [])
-    simplify = params.get("simplify", 100)
+    item_props_to_remove = params.get("item_props_to_remove", [])
+    item_props_to_add = params.get("item_props", {})
 
     return new_geom_item(
         geom_hdf,
@@ -139,8 +138,9 @@ def main(params: dict, dev_mode=False):
         lulc_assets,
         mannings_assets,
         other_assets,
-        simplify,
-        dev_mode,
+        item_props_to_remove,
+        item_props_to_add,
+        minio_mode,
     )
 
 
@@ -152,5 +152,5 @@ if __name__ == "__main__":
 
     PLUGIN_PARAMS = check_params(new_geom_item)
     input_params = parse_input(sys.argv, PLUGIN_PARAMS)
-    result = main(input_params, dev_mode=True)
+    result = main(input_params, minio_mode=True)
     print_results(result)

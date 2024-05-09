@@ -29,19 +29,19 @@ def new_plan_dg_item(
     dg_id: str,
     item_props: dict = None,
     asset_list: list = None,
-    dev_mode: bool = False,
+    minio_mode: bool = False,
 ):
     logging.info("Creating plan item")
     verify_safe_prefix(new_dg_item_s3_key)
 
-    dg_item_public_url = s3_key_public_url_converter(new_dg_item_s3_key, dev_mode=dev_mode)
-    plan_item_public_url = s3_key_public_url_converter(plan_item_s3_key, dev_mode=dev_mode)
+    dg_item_public_url = s3_key_public_url_converter(new_dg_item_s3_key, minio_mode=minio_mode)
+    plan_item_public_url = s3_key_public_url_converter(plan_item_s3_key, minio_mode=minio_mode)
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_dg)
 
     # Instantitate S3 resources
-    session, s3_client, s3_resource = init_s3_resources(dev_mode)
+    session, s3_client, s3_resource = init_s3_resources(minio_mode)
     bucket = s3_resource.Bucket(bucket_name)
     AWS_SESSION = AWSSession(session)
 
@@ -52,7 +52,7 @@ def new_plan_dg_item(
     dg_obj = bucket.Object(key)
 
     logging.info("fetching dg metadata")
-    dg_item = create_depth_grid_item(dg_obj, dg_id, AWS_SESSION, dev_mode=dev_mode)
+    dg_item = create_depth_grid_item(dg_obj, dg_id, AWS_SESSION, minio_mode=minio_mode)
     dg_item.properties.update(item_props)
     dg_item.add_derived_from(plan_item)
 
@@ -62,7 +62,7 @@ def new_plan_dg_item(
         metadata = get_basic_object_metadata(obj)
         asset_info = ras_plan_asset_info(asset_file)
         asset = pystac.Asset(
-            s3_key_public_url_converter(asset_file, dev_mode=dev_mode),
+            s3_key_public_url_converter(asset_file, minio_mode=minio_mode),
             extra_fields=metadata,
             roles=asset_info["roles"],
             description=asset_info["description"],
@@ -93,7 +93,7 @@ def new_plan_dg_item(
     return results
 
 
-def main(params: dict, dev_mode=False):
+def main(params: dict, minio_mode=False):
     # Required parameters
     plan_dg = params.get("plan_dg", None)
     dg_id = params.get("dg_id", None)
@@ -111,7 +111,7 @@ def main(params: dict, dev_mode=False):
         dg_id,
         dg_item_props,
         asset_list,
-        dev_mode,
+        minio_mode,
     )
 
 
@@ -123,5 +123,5 @@ if __name__ == "__main__":
 
     PLUGIN_PARAMS = check_params(new_plan_dg_item)
     input_params = parse_input(sys.argv, PLUGIN_PARAMS)
-    result = main(input_params, dev_mode=True)
+    result = main(input_params, minio_mode=True)
     print_results(result)

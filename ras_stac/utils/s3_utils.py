@@ -3,7 +3,8 @@ import boto3
 import botocore
 import os
 import json
-
+from datetime import datetime
+from json import JSONEncoder
 import logging
 from dotenv import load_dotenv, find_dotenv
 
@@ -37,6 +38,14 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
         raise KeyError(f"Unable to access {obj.key} check that key exists and you have access")
 
 
+class DateTimeEncoder(JSONEncoder):
+    """JSON encoder for handling datetime objects."""
+
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return JSONEncoder.default(self, obj)
+
 
 def copy_item_to_s3(item, s3_key, s3client):
     """
@@ -54,9 +63,9 @@ def copy_item_to_s3(item, s3_key, s3client):
     # s3 = boto3.client("s3")
     bucket, key = split_s3_key(s3_key)
 
-    s3client.put_object(
-        Body=json.dumps(item.to_dict()).encode(), Bucket=bucket, Key=key
-    )
+    item_json = json.dumps(item.to_dict(), cls=DateTimeEncoder).encode("utf-8")
+
+    s3client.put_object(Body=item_json, Bucket=bucket, Key=key)
 
 
 def split_s3_key(s3_key: str) -> tuple[str, str]:
@@ -82,7 +91,7 @@ def split_s3_key(s3_key: str) -> tuple[str, str]:
     return bucket, key
 
 
-def s3_key_public_url_converter(url: str, dev_mode: bool = False) -> str:
+def s3_key_public_url_converter(url: str, minio_mode: bool = False) -> str:
     """
     This function converts an S3 URL to an HTTPS URL and vice versa.
 
@@ -102,19 +111,15 @@ def s3_key_public_url_converter(url: str, dev_mode: bool = False) -> str:
     if url.startswith("s3"):
         bucket = url.replace("s3://", "").split("/")[0]
         key = url.replace(f"s3://{bucket}", "")[1:]
-        if dev_mode:
-            logging.info(
-                f"dev_mode | using minio endpoint for s3 url conversion: {url}"
-            )
+        if minio_mode:
+            logging.info(f"minio_mode | using minio endpoint for s3 url conversion: {url}")
             return f"{os.environ.get('MINIO_S3_ENDPOINT')}/{bucket}/{key}"
         else:
             return f"https://{bucket}.s3.amazonaws.com/{key}"
 
     elif url.startswith("http"):
-        if dev_mode:
-            logging.info(
-                f"dev_mode | using minio endpoint for s3 url conversion: {url}"
-            )
+        if minio_mode:
+            logging.info(f"minio_mode | using minio endpoint for s3 url conversion: {url}")
             bucket = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "").split("/")[0]
             key = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "")
         else:
@@ -135,25 +140,19 @@ def verify_safe_prefix(s3_key: str):
     parts = s3_key.split("/")
     logging.debug(f"parts of the s3_key: {parts}")
     if parts[3] != "stac":
-        raise ValueError(
-            f"prefix must begin with stac/, user provided {s3_key} needs to be corrected"
-        )
+        raise ValueError(f"prefix must begin with stac/, user provided {s3_key} needs to be corrected")
 
 
-def init_s3_resources(dev_mode: bool = False):
-    if dev_mode:
+def init_s3_resources(minio_mode: bool = False):
+    if minio_mode:
         session = boto3.Session(
             aws_access_key_id=os.environ.get("MINIO_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
         )
 
-        s3_client = session.client(
-            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
-        )
+        s3_client = session.client("s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT"))
 
-        s3_resource = session.resource(
-            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
-        )
+        s3_resource = session.resource("s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT"))
 
         return session, s3_client, s3_resource
     else:
@@ -191,9 +190,7 @@ def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):
     while True:
         resp = s3_client.list_objects_v2(**kwargs)
         keys += [
-            obj["Key"]
-            for obj in resp["Contents"]
-            if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
+            obj["Key"] for obj in resp["Contents"] if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
         ]
         try:
             kwargs["ContinuationToken"] = resp["NextContinuationToken"]

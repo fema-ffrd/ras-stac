@@ -28,18 +28,19 @@ def new_plan_item(
     sim_id: str,
     asset_list: list = None,
     item_props: dict = None,
-    dev_mode: bool = False,
+    item_props_to_remove: List = None,
+    minio_mode: bool = False,
 ):
     verify_safe_prefix(new_plan_item_s3_key)
-    plan_item_public_url = s3_key_public_url_converter(new_plan_item_s3_key, dev_mode=dev_mode)
-    geom_item_public_url = s3_key_public_url_converter(geom_item_s3_key, dev_mode=dev_mode)
+    plan_item_public_url = s3_key_public_url_converter(new_plan_item_s3_key, minio_mode=minio_mode)
+    geom_item_public_url = s3_key_public_url_converter(geom_item_s3_key, minio_mode=minio_mode)
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_hdf)
     asset_list.append(plan_hdf)
 
     # Instantitate S3 resources
-    session, s3_client, s3_resource = init_s3_resources(dev_mode)
+    session, s3_client, s3_resource = init_s3_resources(minio_mode)
     bucket = s3_resource.Bucket(bucket_name)
     AWS_SESSION = AWSSession(session)
 
@@ -49,13 +50,20 @@ def new_plan_item(
     geom_item = pystac.Item.from_file(geom_item_public_url)
 
     logging.info("fetching plan metadata")
-    plan_meta = get_simulation_metadata(plan_hdf, sim_id, dev_mode=dev_mode)
-
-    try:
-        logging.info("creating plan item")
-        plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id)
-    except TypeError:
-        return logging.error("unable to retrieve model results. please verify plan was executed and results exist")
+    plan_meta = get_simulation_metadata(plan_hdf, sim_id, minio_mode=minio_mode)
+    if plan_meta:
+        try:
+            logging.info("creating plan item")
+            if item_props_to_remove:
+                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, item_props_to_remove)
+            else:
+                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
+        except TypeError:
+            return logging.error(
+                f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata from {plan_hdf}. please verify plan was executed and results exist"
+            )
+    else:
+        raise AttributeError(f"No simulation metadata retrieved from {plan_hdf}")
 
     plan_item.add_derived_from(geom_item)
     plan_item.properties.update(item_props)
@@ -67,18 +75,12 @@ def new_plan_item(
             metadata = get_basic_object_metadata(obj)
             asset_info = ras_plan_asset_info(asset_file)
             asset = pystac.Asset(
-                s3_key_public_url_converter(asset_file, dev_mode=dev_mode),
+                s3_key_public_url_converter(asset_file, minio_mode=minio_mode),
                 extra_fields=metadata,
                 roles=asset_info["roles"],
                 description=asset_info["description"],
             )
             plan_item.add_asset(asset_info["title"], asset)
-
-    for prop in PLAN_HDF_IGNORE_PROPERTIES:
-        try:
-            del plan_item.properties[prop]
-        except KeyError:
-            logging.warning(f"property {prop} not found")
 
     logging.info("Writing geom item to s3")
     plan_item.set_self_href(plan_item_public_url)
@@ -104,7 +106,7 @@ def new_plan_item(
     return results
 
 
-def main(params: dict, dev_mode=False):
+def main(params: dict, minio_mode=False):
     #  Required parameters
     plan_hdf = params.get("plan_hdf", None)
     sim_id = params.get("sim_id", None)
@@ -114,6 +116,7 @@ def main(params: dict, dev_mode=False):
     # Optional parameters
     asset_list = params.get("asset_list", [])
     plan_item_props = params.get("item_props", {})
+    item_props_to_remove = params.get("item_props_to_remove", [])
 
     return new_plan_item(
         plan_hdf,
@@ -122,7 +125,8 @@ def main(params: dict, dev_mode=False):
         sim_id,
         asset_list,
         plan_item_props,
-        dev_mode,
+        item_props_to_remove,
+        minio_mode,
     )
 
 
@@ -134,5 +138,5 @@ if __name__ == "__main__":
 
     PLUGIN_PARAMS = check_params(new_plan_item)
     input_params = parse_input(sys.argv, PLUGIN_PARAMS)
-    result = main(input_params, dev_mode=True)
+    result = main(input_params, minio_mode=True)
     print_results(result)
