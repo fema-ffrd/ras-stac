@@ -1,4 +1,8 @@
 # ras-stac
+[![CI](https://github.com/fema-ffrd/rashdf/actions/workflows/continuous-integration.yml/badge.svg?branch=main)](https://github.com/fema-ffrd/ras-stac/actions/workflows/continuous-integration.yml)
+[![Release](https://github.com/fema-ffrd/ras-stac/actions/workflows/release.yml/badge.svg)](https://github.com/fema-ffrd/ras-stac/actions/workflows/release.yml)
+[![PyPI version](https://badge.fury.io/py/ras-stac.svg)](https://badge.fury.io/py/ras-stac)
+
 Utilities for making SpatioTemporal Asset Catalogs of HEC-RAS models
 
 This repository contains code for developing STAC items from HEC-RAS models. Current activities focus on creating items for geometry files `g**.hdf` stored in AWS S3. More to come. 
