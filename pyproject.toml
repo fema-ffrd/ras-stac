@@ -1,0 +1,39 @@
+[project]
+name = "ras-stac"
+description = "Create SpatioTemporal Asset Catalog (STAC) objects from HEC-RAS model data."
+readme = "README.md"
+maintainers = [{ name = "Seth Lawler", email = "slawler@dewberry.com" }]
+keywords = ["hec-ras", "catalog", "STAC"]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+version = "0.1.0-beta.1"
+requires-python = ">=3.9"
+dependencies = ["h5py", "geopandas", "s3fs", "boto3", "botocore", "fsspec", "h5py", "mypy", "numpy", "papipyplug",
+               "python-dotenv", "pyproj", "pystac", "shapely", "rasterio", "rashdf"]
+
+[project.optional-dependencies]
+dev = ["pre-commit", "ruff"]
+
+[project.urls]
+repository = "https://github.com/fema-ffrd/ras-stac"
+
+# TODO: add tests.
+# [tool.pytest.ini_options]
+# pythonpath = "src"
+# testpaths = "tests"
+
+# TODO: linting for docstrings.
+# [tool.ruff.lint]
+# select = ["D"]
+
+# [tool.ruff.lint.pydocstyle]
+# convention = "numpy"
