@@ -13,6 +13,29 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 load_dotenv(find_dotenv())
 
 
+def get_perimeter(ras_hdf: RasGeomHdf, simplify: float = None, crs: str = "EPSG:4326"):
+    """
+    Calculate the perimeter of a HEC-RAS geometry as a GeoDataFrame in the specified coordinate reference system.
+
+    Parameters:
+        ras_hdf (RasGeomHdf): A HEC-RAS geometry HDF file object which provides mesh areas.
+        simplify (float, optional): A tolerance level to simplify the perimeter geometry to reduce complexity.
+                                    If None, the geometry will not be simplified. Defaults to None.
+        crs (str): The coordinate reference system which the perimeter geometry will be converted to. Defaults to "EPSG:4326".
+
+    Returns:
+        gpd.GeoDataFrame: A GeoDataFrame containing the calculated perimeter polygon in the specified CRS.
+    """
+
+    perimeter = ras_hdf.mesh_areas()
+    perimeter = perimeter.to_crs(crs)
+    if simplify:
+        perimeter_polygon = perimeter.geometry.unary_union.simplify(tolerance=simplify)
+    else:
+        perimeter_polygon = perimeter.geometry.unary_union
+    return perimeter_polygon
+
+
 def to_snake_case(text):
     """
     Convert a string to snake case, removing punctuation and other symbols.

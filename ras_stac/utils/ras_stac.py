@@ -57,12 +57,9 @@ def create_model_item(
         )
     else:
         ras_hdf = RasGeomHdf.open_uri(ras_geom_hdf_url)
-    perimeter = ras_hdf.mesh_areas()
-    perimeter = perimeter.to_crs("EPSG:4326")
-    if simplify:
-        perimeter_polygon = perimeter.geometry.unary_union.simplify(tolerance=simplify)
-    else:
-        perimeter_polygon = perimeter.geometry.unary_union
+
+    perimeter_polygon = get_perimeter(ras_hdf, simplify)
+
     properties = get_stac_geom_attrs(ras_hdf)
     if not properties:
         raise AttributeError(f"Could not find properties from: {ras_geom_hdf_url}")
