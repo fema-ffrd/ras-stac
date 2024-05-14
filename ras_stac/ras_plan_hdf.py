@@ -1,14 +1,14 @@
 import logging
 import sys
+
+from rasterio.session import AWSSession
+from dotenv import find_dotenv, load_dotenv
+from papipyplug import parse_input, plugin_logger, print_results
+
 from .utils.s3_utils import *
 from .utils.ras_hdf import *
 from .utils.ras_stac import *
-from pathlib import Path
-from rasterio.session import AWSSession
-from dotenv import find_dotenv, load_dotenv
-import numpy as np
 from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
-from papipyplug import parse_input, plugin_logger, print_results
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -32,8 +32,12 @@ def new_plan_item(
     minio_mode: bool = False,
 ):
     verify_safe_prefix(new_plan_item_s3_key)
-    plan_item_public_url = s3_key_public_url_converter(new_plan_item_s3_key, minio_mode=minio_mode)
-    geom_item_public_url = s3_key_public_url_converter(geom_item_s3_key, minio_mode=minio_mode)
+    plan_item_public_url = s3_key_public_url_converter(
+        new_plan_item_s3_key, minio_mode=minio_mode
+    )
+    geom_item_public_url = s3_key_public_url_converter(
+        geom_item_s3_key, minio_mode=minio_mode
+    )
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_hdf)
@@ -55,9 +59,13 @@ def new_plan_item(
         try:
             logging.info("creating plan item")
             if item_props_to_remove:
-                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, item_props_to_remove)
+                plan_item = create_model_simulation_item(
+                    geom_item, plan_meta, sim_id, item_props_to_remove
+                )
             else:
-                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
+                plan_item = create_model_simulation_item(
+                    geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES
+                )
         except TypeError:
             return logging.error(
                 f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata from {plan_hdf}. please verify plan was executed and results exist"

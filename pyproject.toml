@@ -17,8 +17,8 @@ classifiers = [
 ]
 version = "0.1.0-beta.1"
 requires-python = ">=3.9"
-dependencies = ["h5py", "geopandas", "s3fs", "boto3", "botocore", "fsspec", "h5py", "mypy", "numpy", "papipyplug",
-               "python-dotenv", "pyproj", "pystac", "shapely", "rasterio", "rashdf"]
+dependencies = ["boto3", "botocore", "fsspec", "mypy", "numpy", "papipyplug",
+               "python-dotenv", "pystac", "shapely", "rasterio", "rashdf"]
 
 [project.optional-dependencies]
 dev = ["pre-commit", "ruff"]
