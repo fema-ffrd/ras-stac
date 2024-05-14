@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-version = "0.1.0-beta.1"
+version = "0.1.0-beta.2"
 requires-python = ">=3.9"
 dependencies = ["boto3", "botocore", "fsspec", "mypy", "numpy", "papipyplug",
                "python-dotenv", "pystac", "shapely", "rasterio", "rashdf"]
