@@ -74,7 +74,7 @@ def prep_stac_attrs(attrs: dict, prefix: str = None) -> dict:
         if prefix:
             key = f"{to_snake_case(prefix)}:{to_snake_case(k)}"
         else:
-            key = k
+            key = to_snake_case(k)
         results[key] = value
 
     return results
