@@ -6,8 +6,12 @@ def check_params(func):
     sig = inspect.signature(func)
     args = sig.parameters
 
-    required = [name for name, param in args.items() if param.default == inspect.Parameter.empty]
-    optional = [name for name, param in args.items() if param.default != inspect.Parameter.empty]
+    required = [
+        name for name, param in args.items() if param.default == inspect.Parameter.empty
+    ]
+    optional = [
+        name for name, param in args.items() if param.default != inspect.Parameter.empty
+    ]
 
     return {"required": required, "optional": optional}
 
@@ -21,7 +25,8 @@ def get_dict_values(dicts: List[dict], key: Any) -> list:
         key (Any): The key to retrieve the values of.
 
     Returns:
-        List[dict]: A list with the values of the key in the dictionaries. If a dictionary does not have the key, it is skipped.
+        List[dict]: A list with the values of the key in the dictionaries. If a dictionary
+        does not have the key, it is skipped.
     """
     results = []
     for d in dicts:

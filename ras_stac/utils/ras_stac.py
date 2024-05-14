@@ -3,7 +3,13 @@ import json
 from typing import List
 import os
 import fsspec
+import shapely
 from rashdf import RasPlanHdf, RasGeomHdf
+from ras_hdf import (
+    get_stac_geom_attrs,
+    get_stac_plan_attrs,
+    get_stac_plan_results_attrs,
+)
 from pathlib import Path
 import re
 
@@ -12,11 +18,12 @@ import logging
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
-from .ras_hdf import *
-
 
 def create_model_item(
-    ras_geom_hdf_url: str, props_to_remove: List, simplify: float = None, minio_mode: bool = False
+    ras_geom_hdf_url: str,
+    props_to_remove: List,
+    simplify: float = None,
+    minio_mode: bool = False,
 ) -> pystac.Item:
     """
     This function creates a STAC (SpatioTemporal Asset Catalog) item from a given HDF (Hierarchical Data Format)
@@ -42,18 +49,22 @@ def create_model_item(
     6. Gets the attributes of the geometry from the HDF file.
     7. Extracts the geometry time from the properties.
     8. Removes unwanted properties.
-    9. Creates a new STAC item with the model ID, the geometry converted to GeoJSON, the bounding box of the perimeter, and the properties.
+    9. Creates a new STAC item with the model ID, the geometry converted to GeoJSON, the bounding box of the
+       perimeter, and the properties.
     10. Returns the created STAC item.
     """
     if Path(ras_geom_hdf_url).suffix != ".hdf":
-        raise ValueError(f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}")
+        raise ValueError(
+            f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}"
+        )
 
     ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
 
     logging.info(f"Creating STAC item for model {ras_model_name}")
     if minio_mode:
         ras_hdf = RasGeomHdf.open_uri(
-            ras_geom_hdf_url, fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")}
+            ras_geom_hdf_url,
+            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
         )
     else:
         ras_hdf = RasGeomHdf.open_uri(ras_geom_hdf_url)
@@ -131,7 +142,7 @@ def ras_geom_asset_info(s3_key: str, asset_type: str) -> dict:
     """
 
     if asset_type not in ["mannings", "lulc", "topo", "other"]:
-        raise ValueError(f"asset_type must be one of: mannings, lulc, topo, other")
+        raise ValueError("asset_type must be one of: mannings, lulc, topo, other")
 
     file_extension = Path(s3_key).suffix
     title = Path(s3_key).name
@@ -233,7 +244,9 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     return {"roles": roles, "description": description, "title": title}
 
 
-def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str, minio_mode: bool = False) -> dict:
+def get_simulation_metadata(
+    ras_plan_hdf_url: str, simulation: str, minio_mode: bool = False
+) -> dict:
     """
     This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
 
@@ -270,26 +283,33 @@ def get_simulation_metadata(ras_plan_hdf_url: str, simulation: str, minio_mode: 
 
     try:
         plan_hdf = RasPlanHdf(s3f.open())
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         return logging.error(f"file not found: {ras_plan_hdf_url}")
 
     try:
         plan_attrs = get_stac_plan_attrs(plan_hdf)
         metadata.update(plan_attrs)
     except Exception as e:
-        return logging.error(f"unable to extract plan_attrs from {ras_plan_hdf_url}: {e}")
+        return logging.error(
+            f"unable to extract plan_attrs from {ras_plan_hdf_url}: {e}"
+        )
 
     try:
         results_attrs = get_stac_plan_results_attrs(plan_hdf)
         metadata.update(results_attrs)
     except Exception as e:
-        return logging.error(f"unable to extract results_attrs from {ras_plan_hdf_url}: {e}")
+        return logging.error(
+            f"unable to extract results_attrs from {ras_plan_hdf_url}: {e}"
+        )
 
     return metadata
 
 
 def create_model_simulation_item(
-    ras_item: pystac.Item, results_meta: dict, model_sim_id: str, item_props_to_remove: List
+    ras_item: pystac.Item,
+    results_meta: dict,
+    model_sim_id: str,
+    item_props_to_remove: List,
 ) -> pystac.Item:
     """
     This function creates a PySTAC Item for a model simulation.
@@ -319,7 +339,9 @@ def create_model_simulation_item(
         try:
             del results_meta[prop]
         except KeyError:
-            logging.warning(f"Failed to remove property:{prop} not found in simulation results metadata.")
+            logging.warning(
+                f"Failed to remove property:{prop} not found in simulation results metadata."
+            )
 
     item = pystac.Item(
         id=model_sim_id,

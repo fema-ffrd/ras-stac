@@ -1,12 +1,13 @@
-from mypy_boto3_s3.service_resource import ObjectSummary
 import boto3
 import botocore
-import os
 import json
-from datetime import datetime
-from json import JSONEncoder
 import logging
+import re
+import os
+
+from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
+from mypy_boto3_s3.service_resource import ObjectSummary
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -22,7 +23,8 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
         obj (ObjectSummary): The AWS S3 object.
 
     Returns:
-        dict: A dictionary with the size, ETag, last modified date, storage platform, region, and storage tier of the object.
+        dict: A dictionary with the size, ETag, last modified date, storage platform, region, and
+              storage tier of the object.
     """
     try:
         _ = obj.load()
@@ -35,16 +37,18 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
             "storage:tier": obj.storage_class,
         }
     except botocore.exceptions.ClientError:
-        raise KeyError(f"Unable to access {obj.key} check that key exists and you have access")
+        raise KeyError(
+            f"Unable to access {obj.key} check that key exists and you have access"
+        )
 
 
-class DateTimeEncoder(JSONEncoder):
+class DateTimeEncoder(json.JSONEncoder):
     """JSON encoder for handling datetime objects."""
 
     def default(self, obj):
         if isinstance(obj, datetime):
             return obj.isoformat()
-        return JSONEncoder.default(self, obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 def copy_item_to_s3(item, s3_key, s3client):
@@ -112,14 +116,18 @@ def s3_key_public_url_converter(url: str, minio_mode: bool = False) -> str:
         bucket = url.replace("s3://", "").split("/")[0]
         key = url.replace(f"s3://{bucket}", "")[1:]
         if minio_mode:
-            logging.info(f"minio_mode | using minio endpoint for s3 url conversion: {url}")
+            logging.info(
+                f"minio_mode | using minio endpoint for s3 url conversion: {url}"
+            )
             return f"{os.environ.get('MINIO_S3_ENDPOINT')}/{bucket}/{key}"
         else:
             return f"https://{bucket}.s3.amazonaws.com/{key}"
 
     elif url.startswith("http"):
         if minio_mode:
-            logging.info(f"minio_mode | using minio endpoint for s3 url conversion: {url}")
+            logging.info(
+                f"minio_mode | using minio endpoint for s3 url conversion: {url}"
+            )
             bucket = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "").split("/")[0]
             key = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "")
         else:
@@ -140,7 +148,9 @@ def verify_safe_prefix(s3_key: str):
     parts = s3_key.split("/")
     logging.debug(f"parts of the s3_key: {parts}")
     if parts[3] != "stac":
-        raise ValueError(f"prefix must begin with stac/, user provided {s3_key} needs to be corrected")
+        raise ValueError(
+            f"prefix must begin with stac/, user provided {s3_key} needs to be corrected"
+        )
 
 
 def init_s3_resources(minio_mode: bool = False):
@@ -150,9 +160,13 @@ def init_s3_resources(minio_mode: bool = False):
             aws_secret_access_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
         )
 
-        s3_client = session.client("s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT"))
+        s3_client = session.client(
+            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
+        )
 
-        s3_resource = session.resource("s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT"))
+        s3_resource = session.resource(
+            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
+        )
 
         return session, s3_client, s3_resource
     else:
@@ -180,9 +194,6 @@ def list_keys(s3_client, bucket, prefix, suffix=""):
     return keys
 
 
-import re
-
-
 def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):
     keys = []
     kwargs = {"Bucket": bucket, "Prefix": prefix_includes}
@@ -190,7 +201,9 @@ def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):
     while True:
         resp = s3_client.list_objects_v2(**kwargs)
         keys += [
-            obj["Key"] for obj in resp["Contents"] if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
+            obj["Key"]
+            for obj in resp["Contents"]
+            if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
         ]
         try:
             kwargs["ContinuationToken"] = resp["NextContinuationToken"]
