@@ -1,15 +1,22 @@
 import logging
+import pystac
 import sys
-from .utils.s3_utils import *
-from .utils.dg_utils import *
-from .utils.ras_stac import *
-from pathlib import Path
-from rasterio.session import AWSSession
+
 from dotenv import find_dotenv, load_dotenv
-import numpy as np
-from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
+from rasterio.session import AWSSession
 from papipyplug import parse_input, plugin_logger, print_results
+
+from .utils.common import check_params
 from .utils.dg_utils import create_depth_grid_item
+from utils.ras_stac import ras_plan_asset_info
+from .utils.s3_utils import (
+    verify_safe_prefix,
+    s3_key_public_url_converter,
+    split_s3_key,
+    init_s3_resources,
+    get_basic_object_metadata,
+    copy_item_to_s3,
+)
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -34,8 +41,12 @@ def new_plan_dg_item(
     logging.info("Creating plan item")
     verify_safe_prefix(new_dg_item_s3_key)
 
-    dg_item_public_url = s3_key_public_url_converter(new_dg_item_s3_key, minio_mode=minio_mode)
-    plan_item_public_url = s3_key_public_url_converter(plan_item_s3_key, minio_mode=minio_mode)
+    dg_item_public_url = s3_key_public_url_converter(
+        new_dg_item_s3_key, minio_mode=minio_mode
+    )
+    plan_item_public_url = s3_key_public_url_converter(
+        plan_item_s3_key, minio_mode=minio_mode
+    )
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_dg)

@@ -1,22 +1,18 @@
-import boto3
-from dotenv import load_dotenv
-import pystac
-from pathlib import Path
 import json
-from datetime import datetime
-from typing import Tuple, Dict
-import shapely
-from shapely.geometry import shape, box
-import shapely.ops
-import rasterio
-from rasterio.session import AWSSession
-import rasterio.warp
-from dataclasses import dataclass
-from mypy_boto3_s3.service_resource import Object
-from rasterio.session import AWSSession
-from .s3_utils import *
-from rasterio.session import AWSSession
 import logging
+import os
+import pystac
+import rasterio
+
+from datetime import datetime
+from mypy_boto3_s3.service_resource import Object
+from pathlib import Path
+from rasterio.session import AWSSession
+from shapely import to_geojson
+from shapely.geometry import Polygon
+from typing import Tuple
+
+from .s3_utils import s3_key_public_url_converter, get_basic_object_metadata
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -26,17 +22,21 @@ def get_raster_bounds(
     s3_key: str, aws_session: AWSSession, minio_mode: bool = False
 ) -> Tuple[float, float, float, float]:
     """
-    This function retrieves the geographic bounds of a raster file stored in an AWS S3 bucket and returns them in the WGS 84 (EPSG:4326) coordinate reference system.
+    This function retrieves the geographic bounds of a raster file stored in an AWS S3 bucket and returns them in
+    the WGS 84 (EPSG:4326) coordinate reference system.
 
     Parameters:
         s3_key (str): The key of the raster file in the S3 bucket.
         aws_session (AWSSession): The AWS session to use to access the S3 bucket.
 
     Returns:
-        Tuple[float, float, float, float]: The geographic bounds of the raster file in the WGS 84 (EPSG:4326) coordinate reference system. The bounds are returned as a tuple of four floats: (west, south, east, north).
+        Tuple[float, float, float, float]: The geographic bounds of the raster file in the WGS 84 (EPSG:4326)
+        coordinate reference system. The bounds are returned as a tuple of four floats: (west, south, east, north).
     """
     if minio_mode:
-        with rasterio.open(s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")) as src:
+        with rasterio.open(
+            s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")
+        ) as src:
             bounds = src.bounds
             crs = src.crs
             bounds_4326 = rasterio.warp.transform_bounds(crs, "EPSG:4326", *bounds)
@@ -51,7 +51,9 @@ def get_raster_bounds(
                 return bounds_4326
 
 
-def get_raster_metadata(s3_key: str, aws_session: AWSSession, minio_mode: bool = False) -> dict:
+def get_raster_metadata(
+    s3_key: str, aws_session: AWSSession, minio_mode: bool = False
+) -> dict:
     """
     This function retrieves the metadata of a raster file stored in an AWS S3 bucket.
 
@@ -64,7 +66,9 @@ def get_raster_metadata(s3_key: str, aws_session: AWSSession, minio_mode: bool =
         where the keys are the names of the metadata items and the values are the values of the metadata items.
     """
     if minio_mode:
-        with rasterio.open(s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")) as src:
+        with rasterio.open(
+            s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")
+        ) as src:
             return src.tags(1)
     else:
         with rasterio.Env(aws_session):
@@ -72,7 +76,7 @@ def get_raster_metadata(s3_key: str, aws_session: AWSSession, minio_mode: bool =
                 return src.tags(1)
 
 
-def bbox_to_polygon(bbox) -> shapely.Polygon:
+def bbox_to_polygon(bbox) -> Polygon:
     """
     This function converts a bounding box to a Shapely Polygon.
 
@@ -84,7 +88,7 @@ def bbox_to_polygon(bbox) -> shapely.Polygon:
           left corner at (min_x, min_y) and the upper right corner at (max_x, max_y).
     """
     min_x, min_y, max_x, max_y = bbox
-    return shapely.Polygon(
+    return Polygon(
         [
             [min_x, min_y],
             [min_x, max_y],
@@ -122,7 +126,7 @@ def create_depth_grid_item(
         properties={},
         bbox=bbox,
         datetime=datetime.now(),
-        geometry=json.loads(shapely.to_geojson(geometry)),
+        geometry=json.loads(to_geojson(geometry)),
     )
     # non_null = not raster_is_all_null(depth_grid.key)
     asset = pystac.Asset(

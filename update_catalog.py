@@ -32,9 +32,9 @@ if __name__ == "__main__":
     catalog.make_all_asset_hrefs_relative()
 
     session = boto3.Session(
-       aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "user"),
-       aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "password"),
-       region_name=os.getenv("AWS_SECRET_ACCESS_KEY", "us-east-1"),
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "user"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "password"),
+        region_name=os.getenv("AWS_SECRET_ACCESS_KEY", "us-east-1"),
     )
 
     s3_client = session.client("s3", endpoint_url=endpoint_url)

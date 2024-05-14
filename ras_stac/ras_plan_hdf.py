@@ -1,14 +1,26 @@
 import logging
+import pystac
 import sys
-from .utils.s3_utils import *
-from .utils.ras_hdf import *
-from .utils.ras_stac import *
-from pathlib import Path
-from rasterio.session import AWSSession
+
 from dotenv import find_dotenv, load_dotenv
-import numpy as np
-from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
 from papipyplug import parse_input, plugin_logger, print_results
+from typing import List
+
+from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
+from .utils.ras_stac import (
+    get_simulation_metadata,
+    create_model_simulation_item,
+    ras_plan_asset_info,
+)
+from .utils.s3_utils import (
+    verify_safe_prefix,
+    s3_key_public_url_converter,
+    split_s3_key,
+    init_s3_resources,
+    get_basic_object_metadata,
+    copy_item_to_s3,
+)
+
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -32,8 +44,12 @@ def new_plan_item(
     minio_mode: bool = False,
 ):
     verify_safe_prefix(new_plan_item_s3_key)
-    plan_item_public_url = s3_key_public_url_converter(new_plan_item_s3_key, minio_mode=minio_mode)
-    geom_item_public_url = s3_key_public_url_converter(geom_item_s3_key, minio_mode=minio_mode)
+    plan_item_public_url = s3_key_public_url_converter(
+        new_plan_item_s3_key, minio_mode=minio_mode
+    )
+    geom_item_public_url = s3_key_public_url_converter(
+        geom_item_s3_key, minio_mode=minio_mode
+    )
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_hdf)
@@ -42,7 +58,7 @@ def new_plan_item(
     # Instantitate S3 resources
     session, s3_client, s3_resource = init_s3_resources(minio_mode)
     bucket = s3_resource.Bucket(bucket_name)
-    AWS_SESSION = AWSSession(session)
+    # AWSSession(session)
 
     logging.info("Creating plan item")
 
@@ -55,12 +71,17 @@ def new_plan_item(
         try:
             logging.info("creating plan item")
             if item_props_to_remove:
-                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, item_props_to_remove)
+                plan_item = create_model_simulation_item(
+                    geom_item, plan_meta, sim_id, item_props_to_remove
+                )
             else:
-                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
+                plan_item = create_model_simulation_item(
+                    geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES
+                )
         except TypeError:
             return logging.error(
-                f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata from {plan_hdf}. please verify plan was executed and results exist"
+                f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata \
+                    from {plan_hdf}. please verify plan was executed and results exist"
             )
     else:
         raise AttributeError(f"No simulation metadata retrieved from {plan_hdf}")
