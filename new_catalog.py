@@ -8,7 +8,7 @@ import sys
 def create_catalog(cat_id: str = "dev-catalog"):
     catalog = pystac.Catalog(
         id=cat_id,
-        description=f"Sandbox catalog for local development with stac-browser",
+        description="Sandbox catalog for local development with stac-browser",
         title=f"{cat_id}",
     )
     return catalog

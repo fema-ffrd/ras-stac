@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import pystac
 import rasterio
 
@@ -9,9 +10,9 @@ from pathlib import Path
 from rasterio.session import AWSSession
 from shapely import to_geojson
 from shapely.geometry import Polygon
-from typing import Tuple, Dict
+from typing import Tuple
 
-from .s3_utils import *
+from .s3_utils import s3_key_public_url_converter, get_basic_object_metadata
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)

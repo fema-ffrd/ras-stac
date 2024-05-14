@@ -1,13 +1,22 @@
 import logging
 import numpy as np
+import pystac
 import sys
-from papipyplug import parse_input, plugin_logger, print_results
+
 from dotenv import load_dotenv, find_dotenv
+from papipyplug import parse_input, plugin_logger, print_results
+from typing import List
 
 from .utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
-from .utils.s3_utils import *
-from .utils.ras_hdf import *
-from .utils.ras_stac import *
+from .utils.ras_stac import create_model_item, new_geom_assets, ras_geom_asset_info
+from .utils.s3_utils import (
+    verify_safe_prefix,
+    s3_key_public_url_converter,
+    split_s3_key,
+    init_s3_resources,
+    get_basic_object_metadata,
+    copy_item_to_s3,
+)
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -73,8 +82,8 @@ def new_geom_item(
             obj = bucket.Object(asset_key)
             try:
                 metadata = get_basic_object_metadata(obj)
-            except:
-                logging.error(f"unable to fetch metadata for :{obj}")
+            except Exception as e:
+                logging.error(f"unable to fetch metadata for {obj}:{e}")
                 metadata = {}
             asset_info = ras_geom_asset_info(asset_file, asset_type)
             asset = pystac.Asset(

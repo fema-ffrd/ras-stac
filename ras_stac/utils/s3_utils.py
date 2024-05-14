@@ -2,6 +2,7 @@ import boto3
 import botocore
 import json
 import logging
+import re
 import os
 
 from datetime import datetime
@@ -22,7 +23,8 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
         obj (ObjectSummary): The AWS S3 object.
 
     Returns:
-        dict: A dictionary with the size, ETag, last modified date, storage platform, region, and storage tier of the object.
+        dict: A dictionary with the size, ETag, last modified date, storage platform, region, and
+              storage tier of the object.
     """
     try:
         _ = obj.load()
@@ -190,9 +192,6 @@ def list_keys(s3_client, bucket, prefix, suffix=""):
         except KeyError:
             break
     return keys
-
-
-import re
 
 
 def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):

@@ -106,8 +106,8 @@ def get_stac_plan_attrs(ras_hdf: RasPlanHdf, include_results: bool = False) -> d
 
 def get_stac_plan_results_attrs(ras_hdf: RasPlanHdf):
     """
-    This function retrieves the results attributes of a plan from a HEC-RAS plan HDF file, converting them to STAC format.
-    For summary atrributes, it retrieves the total computation time, the run time window,
+    This function retrieves the results attributes of a plan from a HEC-RAS plan HDF file, converting
+    them to STAC format. For summary atrributes, it retrieves the total computation time, the run time window,
     and the solution from it, and calculates the total computation time in minutes if it exists.
 
     Parameters:

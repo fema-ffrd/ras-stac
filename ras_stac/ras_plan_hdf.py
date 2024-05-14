@@ -1,14 +1,26 @@
 import logging
+import pystac
 import sys
 
-from rasterio.session import AWSSession
 from dotenv import find_dotenv, load_dotenv
 from papipyplug import parse_input, plugin_logger, print_results
+from typing import List
 
-from .utils.s3_utils import *
-from .utils.ras_hdf import *
-from .utils.ras_stac import *
 from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
+from .utils.ras_stac import (
+    get_simulation_metadata,
+    create_model_simulation_item,
+    ras_plan_asset_info,
+)
+from .utils.s3_utils import (
+    verify_safe_prefix,
+    s3_key_public_url_converter,
+    split_s3_key,
+    init_s3_resources,
+    get_basic_object_metadata,
+    copy_item_to_s3,
+)
+
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -46,7 +58,7 @@ def new_plan_item(
     # Instantitate S3 resources
     session, s3_client, s3_resource = init_s3_resources(minio_mode)
     bucket = s3_resource.Bucket(bucket_name)
-    AWS_SESSION = AWSSession(session)
+    # AWSSession(session)
 
     logging.info("Creating plan item")
 
@@ -68,7 +80,8 @@ def new_plan_item(
                 )
         except TypeError:
             return logging.error(
-                f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata from {plan_hdf}. please verify plan was executed and results exist"
+                f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata \
+                    from {plan_hdf}. please verify plan was executed and results exist"
             )
     else:
         raise AttributeError(f"No simulation metadata retrieved from {plan_hdf}")
