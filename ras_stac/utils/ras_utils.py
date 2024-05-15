@@ -18,14 +18,11 @@ load_dotenv(find_dotenv())
 
 class RasStacGeom:
     def __init__(self, rg: RasGeomHdf):
-        self.rp = rg
+        self.rg = rg
 
-    def get_stac_geom_attrs(self: RasGeomHdf):
+    def get_stac_geom_attrs(self) -> dict:
         """
         This function retrieves the geometry attributes of a HEC-RAS HDF file, converting them to STAC format.
-
-        Parameters:
-            ras_hdf (RasGeomHdf): An instance of RasGeomHdf which the geometry attributes will be retrieved from.
 
         Returns:
             stac_geom_attrs (dict): A dictionary with the organized geometry attributes.
@@ -47,25 +44,17 @@ class RasStacGeom:
 
         structures_attrs = self.rg.get_geom_structures_attrs()
         if structures_attrs is not None:
-            structures_stac_attrs = prep_stac_attrs(
-                structures_attrs, prefix="Structures"
-            )
+            structures_stac_attrs = prep_stac_attrs(structures_attrs, prefix="Structures")
             stac_geom_attrs.update(structures_stac_attrs)
         else:
             logging.warning("No geometry structures attributes found.")
 
         d2_flow_area_attrs = self.rg.get_geom_2d_flow_area_attrs()
         if d2_flow_area_attrs is not None:
-            d2_flow_area_stac_attrs = prep_stac_attrs(
-                d2_flow_area_attrs, prefix="2D Flow Areas"
-            )
-            cell_average_size = d2_flow_area_stac_attrs.get(
-                "2d_flow_area:cell_average_size", None
-            )
+            d2_flow_area_stac_attrs = prep_stac_attrs(d2_flow_area_attrs, prefix="2D Flow Areas")
+            cell_average_size = d2_flow_area_stac_attrs.get("2d_flow_area:cell_average_size", None)
             if cell_average_size is not None:
-                d2_flow_area_stac_attrs["2d_flow_area:cell_average_length"] = (
-                    cell_average_size**0.5
-                )
+                d2_flow_area_stac_attrs["2d_flow_area:cell_average_length"] = cell_average_size**0.5
             else:
                 logging.warning("Unable to add cell average size to attributes.")
             stac_geom_attrs.update(d2_flow_area_stac_attrs)
@@ -75,15 +64,7 @@ class RasStacGeom:
         return stac_geom_attrs
 
     def get_perimeter(self, simplify: float = None, crs: str = "EPSG:4326"):
-        return ras_perimeter(simplify, crs)
-
-    def to_item(self):
-        raise NotImplementedError
-
-
-class RasStacPlan(RasStacGeom):
-    def __init__(self, rp: RasPlanHdf):
-        self.rp = rp
+        return ras_perimeter(self.rg, simplify, crs)
 
     def to_item(
         self,
@@ -96,7 +77,6 @@ class RasStacPlan(RasStacGeom):
         Creates a STAC (SpatioTemporal Asset Catalog) item from a given RasGeomHdf object.
 
         Parameters:
-        geom_hdf_obj (RasGeomHdf): The RasGeomHdf object containing the geometry hdf.
         props_to_remove (List): List of properties to be removed from the item.
         ras_model_name (str): The name of the RAS model.
         simplify (float, optional): Tolerance for simplifying the perimeter polygon. Defaults to None.
@@ -116,14 +96,17 @@ class RasStacPlan(RasStacGeom):
         6. Returns the created STAC item.
         """
 
-        perimeter_polygon = self.get_perimeter(self.rp, simplify)
+        perimeter_polygon = self.get_perimeter(simplify)
 
-        properties = self.get_stac_geom_attrs(self.rp)
+        properties = self.get_stac_geom_attrs()
         if not properties:
-            raise AttributeError(
-                f"Could not find properties while creating model item for {ras_model_name}."
-            )
+            raise AttributeError(f"Could not find properties while creating model item for {ras_model_name}.")
+
         geometry_time = properties.get("geometry:geometry_time")
+        if not geometry_time:
+            raise AttributeError(
+                f"Could not find data for 'geometry:geometry_time' while creating model item for {ras_model_name}."
+            )
 
         # Remove unwanted properties
         for prop in props_to_remove:
@@ -144,12 +127,69 @@ class RasStacPlan(RasStacGeom):
         )
         return item
 
+
+class RasStacPlan(RasStacGeom):
+    def __init__(self, rp: RasPlanHdf):
+        super().__init__(rp)
+        self.rp = rp
+
+    def to_item(
+        self,
+        ras_item: pystac.Item,
+        results_meta: dict,
+        model_sim_id: str,
+        item_props_to_remove: List,
+    ) -> pystac.Item:
+        """
+        This function creates a PySTAC Item for a model simulation.
+
+        Parameters:
+            ras_item (pystac.Item): The PySTAC Item of the RAS model.
+            results_meta (dict): The metadata of the simulation results.
+            model_sim_id (str): The ID of the model simulation.
+            item_props_to_remove (List): List of properties to be removed from the item.
+
+        Returns:
+            pystac.Item: A PySTAC Item for the model simulation.
+
+        The function performs the following steps:
+        1. Retrieves the runtime window from the `results_meta` dictionary.
+        2. Removes unwanted properties.
+        3. Creates a PySTAC Item with the ID being the `model_sim_id`, the geometry and the bounding box being those of
+        the `ras_item`, the start and end datetimes being the converted start and end times of the runtime window,
+        the datetime being the start datetime, and the properties being the `results_meta` with unwanted properties removed.
+        4. Returns the created PySTAC Item.
+        """
+        runtime_window = results_meta.get("results_summary:run_time_window")
+        if not runtime_window:
+            raise AttributeError(
+                f"Could not find data for 'results_summary:run_time_window' while creating model item for model id:{model_sim_id}."
+            )
+        start_datetime = runtime_window[0]
+        end_datetime = runtime_window[1]
+
+        for prop in item_props_to_remove:
+            try:
+                del results_meta[prop]
+            except KeyError:
+                logging.warning(f"Failed to remove property:{prop} not found in simulation results metadata.")
+
+        item = pystac.Item(
+            id=model_sim_id,
+            geometry=ras_item.geometry,
+            bbox=ras_item.bbox,
+            start_datetime=start_datetime,
+            end_datetime=end_datetime,
+            datetime=start_datetime,
+            properties=results_meta,
+        )
+        return item
+
     def get_stac_plan_attrs(self, include_results: bool = False) -> dict:
         """
         This function retrieves the attributes of a plan from a HEC-RAS plan HDF file, converting them to STAC format.
 
         Parameters:
-            ras_hdf (RasPlanHdf): An instance of RasPlanHdf which the attributes will be retrieved from.
             include_results (bool, optional): Whether to include the results attributes in the returned dictionary.
                 Defaults to False.
 
@@ -165,18 +205,14 @@ class RasStacPlan(RasStacGeom):
 
         plan_info_attrs = self.rp.get_plan_info_attrs()
         if plan_info_attrs is not None:
-            plan_info_stac_attrs = prep_stac_attrs(
-                plan_info_attrs, prefix="Plan Information"
-            )
+            plan_info_stac_attrs = prep_stac_attrs(plan_info_attrs, prefix="Plan Information")
             stac_plan_attrs.update(plan_info_stac_attrs)
         else:
             logging.warning("No plan information attributes found.")
 
         plan_params_attrs = self.rp.get_plan_param_attrs()
         if plan_params_attrs is not None:
-            plan_params_stac_attrs = prep_stac_attrs(
-                plan_params_attrs, prefix="Plan Parameters"
-            )
+            plan_params_stac_attrs = prep_stac_attrs(plan_params_attrs, prefix="Plan Parameters")
             stac_plan_attrs.update(plan_params_stac_attrs)
         else:
             logging.warning("No plan parameters attributes found.")
@@ -199,9 +235,6 @@ class RasStacPlan(RasStacGeom):
         them to STAC format. For summary atrributes, it retrieves the total computation time, the run time window,
         and the solution from it, and calculates the total computation time in minutes if it exists.
 
-        Parameters:
-            ras_hdf (RasPlanHdf): An instance of RasPlanHdf which the results attributes will be retrieved from.
-
         Returns:
             results_attrs (dict): A dictionary with the results attributes of the plan.
         """
@@ -209,101 +242,67 @@ class RasStacPlan(RasStacGeom):
 
         unsteady_results_attrs = self.rp.get_results_unsteady_attrs()
         if unsteady_results_attrs is not None:
-            unsteady_results_stac_attrs = prep_stac_attrs(
-                unsteady_results_attrs, prefix="Unsteady Results"
-            )
+            unsteady_results_stac_attrs = prep_stac_attrs(unsteady_results_attrs, prefix="Unsteady Results")
             results_attrs.update(unsteady_results_stac_attrs)
         else:
             logging.warning("No unsteady results attributes found.")
 
         summary_attrs = self.rp.get_results_unsteady_summary_attrs()
         if summary_attrs is not None:
-            summary_stac_attrs = prep_stac_attrs(
-                summary_attrs, prefix="Results Summary"
-            )
-            computation_time_total = summary_stac_attrs.get(
-                "results_summary:computation_time_total"
-            )
+            summary_stac_attrs = prep_stac_attrs(summary_attrs, prefix="Results Summary")
+            computation_time_total = summary_stac_attrs.get("results_summary:computation_time_total")
             results_summary = {
                 "results_summary:computation_time_total": computation_time_total,
-                "results_summary:run_time_window": summary_stac_attrs.get(
-                    "results_summary:run_time_window"
-                ),
-                "results_summary:solution": summary_stac_attrs.get(
-                    "results_summary:solution"
-                ),
+                "results_summary:run_time_window": summary_stac_attrs.get("results_summary:run_time_window"),
+                "results_summary:solution": summary_stac_attrs.get("results_summary:solution"),
             }
             if computation_time_total is not None:
-                computation_time_total_minutes = (
-                    parse_duration(computation_time_total).total_seconds() / 60
-                )
-                results_summary["results_summary:computation_time_total_minutes"] = (
-                    computation_time_total_minutes
-                )
+                computation_time_total_minutes = parse_duration(computation_time_total).total_seconds() / 60
+                results_summary["results_summary:computation_time_total_minutes"] = computation_time_total_minutes
             results_attrs.update(results_summary)
         else:
             logging.warning("No unsteady results summary attributes found.")
 
         volume_accounting_attrs = self.rp.get_results_volume_accounting_attrs()
         if volume_accounting_attrs is not None:
-            volume_accounting_stac_attrs = prep_stac_attrs(
-                volume_accounting_attrs, prefix="Volume Accounting"
-            )
+            volume_accounting_stac_attrs = prep_stac_attrs(volume_accounting_attrs, prefix="Volume Accounting")
             results_attrs.update(volume_accounting_stac_attrs)
         else:
             logging.warning("No results volume accounting attributes found.")
 
         return results_attrs
 
+    def get_simulation_metadata(self, simulation: str) -> dict:
+        """
+        This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
 
-# def create_model_simulation_item(
-#     ras_item: pystac.Item,
-#     results_meta: dict,
-#     model_sim_id: str,
-#     item_props_to_remove: List,
-# ) -> pystac.Item:
-#     """
-#     This function creates a PySTAC Item for a model simulation.
+        Parameters:
+            simulation (str): The name of the simulation.
 
-#     Parameters:
-#         ras_item (pystac.Item): The PySTAC Item of the RAS model.
-#         results_meta (dict): The metadata of the simulation results.
-#         model_sim_id (str): The ID of the model simulation.
-#         item_props_to_remove (List): List of properties to be removed from the item.
+        Returns:
+            dict: A dictionary with the metadata of the simulation.
 
-#     Returns:
-#         pystac.Item: A PySTAC Item for the model simulation.
+        The function performs the following steps:
+        1. Initializes a metadata dictionary with the key "ras:simulation" and the value being the provided simulation.
+        2. Tries to get the plan attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
+        3. Tries to get the plan results attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
+        4. Returns the `metadata` dictionary.
+        """
+        metadata = {"ras:simulation": simulation}
 
-#     The function performs the following steps:
-#     1. Retrieves the runtime window from the `results_meta` dictionary.
-#     2. Removes unwanted properties.
-#     3. Creates a PySTAC Item with the ID being the `model_sim_id`, the geometry and the bounding box being those of
-#       the `ras_item`, the start and end datetimes being the converted start and end times of the runtime window,
-#       the datetime being the start datetime, and the properties being the `results_meta` with unwanted properties removed.
-#     4. Returns the created PySTAC Item.
-#     """
-#     runtime_window = results_meta.get("results_summary:run_time_window")
-#     start_datetime = runtime_window[0]
-#     end_datetime = runtime_window[1]
+        try:
+            plan_attrs = self.get_stac_plan_attrs()
+            metadata.update(plan_attrs)
+        except Exception as e:
+            return logging.error(f"unable to extract plan_attrs from plan: {e}")
 
-#     for prop in item_props_to_remove:
-#         try:
-#             del results_meta[prop]
-#         except KeyError:
-#             logging.warning(
-#                 f"Failed to remove property:{prop} not found in simulation results metadata."
-#             )
+        try:
+            results_attrs = self.get_stac_plan_results_attrs()
+            metadata.update(results_attrs)
+        except Exception as e:
+            return logging.error(f"unable to extract results_attrs from plan: {e}")
 
-#     item = pystac.Item(
-#         id=model_sim_id,
-#         geometry=ras_item.geometry,
-#         bbox=ras_item.bbox,
-#         start_datetime=start_datetime,
-#         end_datetime=end_datetime,
-#         datetime=start_datetime,
-#         properties=results_meta,
-#     )
-#     return item
+        return metadata
 
 
 def new_geom_assets(
@@ -452,40 +451,6 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     return {"roles": roles, "description": description, "title": title}
 
 
-def get_simulation_metadata(plan_hdf_obj: RasPlanHdf, simulation: str) -> dict:
-    """
-    This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
-
-    Parameters:
-        plan_hdf_obj (RasPlanHdf): The RasPlanHdf object containing the plan data.
-        simulation (str): The name of the simulation.
-
-    Returns:
-        dict: A dictionary with the metadata of the simulation.
-
-    The function performs the following steps:
-    1. Initializes a metadata dictionary with the key "ras:simulation" and the value being the provided simulation.
-    2. Tries to get the plan attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
-    3. Tries to get the plan results attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
-    4. Returns the `metadata` dictionary.
-    """
-    metadata = {"ras:simulation": simulation}
-
-    try:
-        plan_attrs = get_stac_plan_attrs(plan_hdf_obj)
-        metadata.update(plan_attrs)
-    except Exception as e:
-        return logging.error(f"unable to extract plan_attrs from plan: {e}")
-
-    try:
-        results_attrs = get_stac_plan_results_attrs(plan_hdf_obj)
-        metadata.update(results_attrs)
-    except Exception as e:
-        return logging.error(f"unable to extract results_attrs from plan: {e}")
-
-    return metadata
-
-
 def to_snake_case(text):
     """
     Convert a string to snake case, removing punctuation and other symbols.
@@ -530,12 +495,12 @@ def prep_stac_attrs(attrs: dict, prefix: str = None) -> dict:
     return results
 
 
-def ras_perimeter(rg: RasGeomHdf, simplify: int = None, crs: str = "EPSG:4326"):
+def ras_perimeter(rg: RasGeomHdf, simplify: float = None, crs: str = "EPSG:4326"):
     """
     Calculate the perimeter of a HEC-RAS geometry as a GeoDataFrame in the specified coordinate reference system.
 
     Parameters:
-        ras_hdf (RasGeomHdf): A HEC-RAS geometry HDF file object which provides mesh areas.
+        rg (RasGeomHdf): A HEC-RAS geometry HDF file object which provides mesh areas.
         simplify (float, optional): A tolerance level to simplify the perimeter geometry to reduce complexity.
                                     If None, the geometry will not be simplified. Defaults to None.
         crs (str): The coordinate reference system which the perimeter geometry will be converted to. Defaults to "EPSG:4326".
