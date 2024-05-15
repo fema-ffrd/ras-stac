@@ -8,7 +8,7 @@ from papipyplug import parse_input, plugin_logger, print_results
 
 from .utils.common import check_params
 from .utils.dg_utils import create_depth_grid_item
-from utils.ras_stac import ras_plan_asset_info
+from .utils.ras_stac import ras_plan_asset_info
 from .utils.s3_utils import (
     verify_safe_prefix,
     s3_key_public_url_converter,
@@ -41,12 +41,8 @@ def new_plan_dg_item(
     logging.info("Creating plan item")
     verify_safe_prefix(new_dg_item_s3_key)
 
-    dg_item_public_url = s3_key_public_url_converter(
-        new_dg_item_s3_key, minio_mode=minio_mode
-    )
-    plan_item_public_url = s3_key_public_url_converter(
-        plan_item_s3_key, minio_mode=minio_mode
-    )
+    dg_item_public_url = s3_key_public_url_converter(new_dg_item_s3_key, minio_mode=minio_mode)
+    plan_item_public_url = s3_key_public_url_converter(plan_item_s3_key, minio_mode=minio_mode)
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_dg)
