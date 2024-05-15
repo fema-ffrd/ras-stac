@@ -5,11 +5,7 @@ import os
 import fsspec
 import shapely
 from rashdf import RasPlanHdf, RasGeomHdf
-from ras_hdf import (
-    get_stac_geom_attrs,
-    get_stac_plan_attrs,
-    get_stac_plan_results_attrs,
-)
+from .ras_hdf import get_stac_geom_attrs, get_stac_plan_attrs, get_stac_plan_results_attrs, get_perimeter
 from pathlib import Path
 import re
 
@@ -20,60 +16,40 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 
 
 def create_model_item(
-    ras_geom_hdf_url: str,
+    geom_hdf_obj: RasGeomHdf,
     props_to_remove: List,
+    ras_model_name: str,
     simplify: float = None,
-    minio_mode: bool = False,
 ) -> pystac.Item:
     """
-    This function creates a STAC (SpatioTemporal Asset Catalog) item from a given HDF (Hierarchical Data Format)
-    file URL.
+    Creates a STAC (SpatioTemporal Asset Catalog) item from a given RasGeomHdf object.
 
     Parameters:
-    ras_geom_hdf_url (str): The URL of the HDF file.
-    props_to_remove (List): List of properties to be removed from item.
+    geom_hdf_obj (RasGeomHdf): The RasGeomHdf object containing the geometry hdf.
+    props_to_remove (List): List of properties to be removed from the item.
+    ras_model_name (str): The name of the RAS model.
+    simplify (float, optional): Tolerance for simplifying the perimeter polygon. Defaults to None.
 
     Returns:
     pystac.Item: The created STAC item.
 
     Raises:
-    ValueError: If the provided URL does not have a '.hdf' suffix.
+    AttributeError: If the properties cannot be extracted from the RasGeomHdf object.
 
     The function performs the following steps:
-    1. Checks if the provided URL has a '.hdf' suffix. If not, it raises a ValueError.
-    2. Extracts the model name from the URL by removing the '.hdf' suffix and getting the stem of the path.
-    3. Logs the creation of the STAC item for the model.
-    4. Opens the HDF file from the URL using the `RasGeomHdf.open_uri` method.
-    5. Gets the perimeter of the 2D flow area from the HDF file and simplifies it using the provided `simplify`
-      parameter.
-    6. Gets the attributes of the geometry from the HDF file.
-    7. Extracts the geometry time from the properties.
-    8. Removes unwanted properties.
-    9. Creates a new STAC item with the model ID, the geometry converted to GeoJSON, the bounding box of the
-       perimeter, and the properties.
-    10. Returns the created STAC item.
+    1. Gets the perimeter of the 2D flow area from the RasGeomHdf object.
+    2. Extracts the attributes of the geometry from the RasGeomHdf object.
+    3. Extracts the geometry time from the properties.
+    4. Removes unwanted properties specified in `props_to_remove`.
+    5. Creates a new STAC item with the model ID, the geometry converted to GeoJSON, the bounding box of the perimeter, and the properties.
+    6. Returns the created STAC item.
     """
-    if Path(ras_geom_hdf_url).suffix != ".hdf":
-        raise ValueError(
-            f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}"
-        )
 
-    ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
+    perimeter_polygon = get_perimeter(geom_hdf_obj, simplify)
 
-    logging.info(f"Creating STAC item for model {ras_model_name}")
-    if minio_mode:
-        ras_hdf = RasGeomHdf.open_uri(
-            ras_geom_hdf_url,
-            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
-        )
-    else:
-        ras_hdf = RasGeomHdf.open_uri(ras_geom_hdf_url)
-
-    perimeter_polygon = get_perimeter(ras_hdf, simplify)
-
-    properties = get_stac_geom_attrs(ras_hdf)
+    properties = get_stac_geom_attrs(geom_hdf_obj)
     if not properties:
-        raise AttributeError(f"Could not find properties from: {ras_geom_hdf_url}")
+        raise AttributeError(f"Could not find properties while creating model item.")
     geometry_time = properties.get("geometry:geometry_time")
 
     # Remove unwanted properties
@@ -241,63 +217,36 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     return {"roles": roles, "description": description, "title": title}
 
 
-def get_simulation_metadata(
-    ras_plan_hdf_url: str, simulation: str, minio_mode: bool = False
-) -> dict:
+def get_simulation_metadata(plan_hdf_obj: RasPlanHdf, simulation: str) -> dict:
     """
     This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
 
     Parameters:
-        ras_plan_hdf_url (str): The URL of the HEC-RAS plan HDF file.
+        plan_hdf_obj (RasPlanHdf): The RasPlanHdf object containing the plan data.
         simulation (str): The name of the simulation.
 
     Returns:
         dict: A dictionary with the metadata of the simulation.
 
     The function performs the following steps:
-    1. Opens the HEC-RAS plan HDF file from the provided URL in read-binary mode.
-    2. Initializes a dictionary `metadata` with the key "ras:simulation" and the value being the provided
-      `simulation` such as the plan id.
-    3. Tries to open the HEC-RAS plan HDF file in read mode. If the file is not found, it logs an error
-      and returns.
-    4. Tries to get the plan attributes from the HDF file and update the `metadata` dictionary with them.
-      If an exception occurs, it logs an error and returns.
-    5. Tries to get the plan results attributes from the HDF file and update the `metadata` dictionary with
-      them. If an exception occurs, it logs an error and returns.
-    6. Returns the `metadata` dictionary.
+    1. Initializes a metadata dictionary with the key "ras:simulation" and the value being the provided simulation.
+    2. Tries to get the plan attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
+    3. Tries to get the plan results attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
+    4. Returns the `metadata` dictionary.
     """
-    if minio_mode:
-        s3f = fsspec.open(
-            ras_plan_hdf_url,
-            client_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
-            mode="rb",
-        )
-    else:
-        s3f = fsspec.open(ras_plan_hdf_url, mode="rb")
-    metadata = {
-        "ras:simulation": simulation,
-    }
+    metadata = {"ras:simulation": simulation}
 
     try:
-        plan_hdf = RasPlanHdf(s3f.open())
-    except FileNotFoundError:
-        return logging.error(f"file not found: {ras_plan_hdf_url}")
-
-    try:
-        plan_attrs = get_stac_plan_attrs(plan_hdf)
+        plan_attrs = get_stac_plan_attrs(plan_hdf_obj)
         metadata.update(plan_attrs)
     except Exception as e:
-        return logging.error(
-            f"unable to extract plan_attrs from {ras_plan_hdf_url}: {e}"
-        )
+        return logging.error(f"unable to extract plan_attrs from plan: {e}")
 
     try:
-        results_attrs = get_stac_plan_results_attrs(plan_hdf)
+        results_attrs = get_stac_plan_results_attrs(plan_hdf_obj)
         metadata.update(results_attrs)
     except Exception as e:
-        return logging.error(
-            f"unable to extract results_attrs from {ras_plan_hdf_url}: {e}"
-        )
+        return logging.error(f"unable to extract results_attrs from plan: {e}")
 
     return metadata
 
@@ -336,9 +285,7 @@ def create_model_simulation_item(
         try:
             del results_meta[prop]
         except KeyError:
-            logging.warning(
-                f"Failed to remove property:{prop} not found in simulation results metadata."
-            )
+            logging.warning(f"Failed to remove property:{prop} not found in simulation results metadata.")
 
     item = pystac.Item(
         id=model_sim_id,

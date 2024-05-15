@@ -4,6 +4,8 @@ import json
 import logging
 import re
 import os
+from rashdf import RasPlanHdf, RasGeomHdf
+from pathlib import Path
 
 from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
@@ -13,6 +15,67 @@ logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
 load_dotenv(find_dotenv())
+
+
+def read_ras_geom_from_s3(ras_geom_hdf_url: str, minio_mode: bool = False):
+    """
+    Reads a RAS geometry HDF file from an S3 URL.
+
+    Parameters:
+        ras_geom_hdf_url (str): The URL of the RAS geometry HDF file.
+        minio_mode (bool, optional): If True, uses MinIO endpoint for S3. Defaults to False.
+
+    Returns:
+        geom_hdf_obj (RasGeomHdf): The RasGeomHdf object.
+        ras_model_name (str): The RAS model name.
+
+    Raises:
+        ValueError: If the provided URL does not have a '.hdf' suffix.
+    """
+    if Path(ras_geom_hdf_url).suffix != ".hdf":
+        raise ValueError(f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_geom_hdf_url}")
+
+    ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
+
+    logging.info(f"Reading hdf file from {ras_geom_hdf_url}")
+    if minio_mode:
+        geom_hdf_obj = RasGeomHdf.open_uri(
+            ras_geom_hdf_url,
+            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
+        )
+    else:
+        geom_hdf_obj = RasGeomHdf.open_uri(ras_geom_hdf_url)
+
+    return geom_hdf_obj, ras_model_name
+
+
+def read_ras_plan_from_s3(ras_plan_hdf_url: str, minio_mode: bool = False):
+    """
+    Reads a RAS plan HDF file from an S3 URL.
+
+    Parameters:
+        ras_plan_hdf_url (str): The URL of the RAS plan HDF file.
+        minio_mode (bool, optional): If True, uses MinIO endpoint for S3. Defaults to False.
+
+    Returns:
+        plan_hdf_obj (RasPlanHdf): The RasPlanHdf object.
+
+    Raises:
+        ValueError: If the provided URL does not have a '.hdf' suffix.
+    """
+    if Path(ras_plan_hdf_url).suffix != ".hdf":
+        raise ValueError(f"Expected pattern: `s3://bucket/prefix/ras-model-name.g**.hdf`, got {ras_plan_hdf_url}")
+
+    logging.info(f"Reading hdf file from {ras_plan_hdf_url}")
+    if minio_mode:
+        plan_hdf_obj = RasPlanHdf.open_uri(
+            ras_plan_hdf_url,
+            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
+        )
+    else:
+        plan_hdf_obj = RasPlanHdf.open_uri(ras_plan_hdf_url)
+
+    return plan_hdf_obj
 
 
 def get_basic_object_metadata(obj: ObjectSummary) -> dict:
@@ -37,9 +100,7 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
             "storage:tier": obj.storage_class,
         }
     except botocore.exceptions.ClientError:
-        raise KeyError(
-            f"Unable to access {obj.key} check that key exists and you have access"
-        )
+        raise KeyError(f"Unable to access {obj.key} check that key exists and you have access")
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -116,18 +177,14 @@ def s3_key_public_url_converter(url: str, minio_mode: bool = False) -> str:
         bucket = url.replace("s3://", "").split("/")[0]
         key = url.replace(f"s3://{bucket}", "")[1:]
         if minio_mode:
-            logging.info(
-                f"minio_mode | using minio endpoint for s3 url conversion: {url}"
-            )
+            logging.info(f"minio_mode | using minio endpoint for s3 url conversion: {url}")
             return f"{os.environ.get('MINIO_S3_ENDPOINT')}/{bucket}/{key}"
         else:
             return f"https://{bucket}.s3.amazonaws.com/{key}"
 
     elif url.startswith("http"):
         if minio_mode:
-            logging.info(
-                f"minio_mode | using minio endpoint for s3 url conversion: {url}"
-            )
+            logging.info(f"minio_mode | using minio endpoint for s3 url conversion: {url}")
             bucket = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "").split("/")[0]
             key = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "")
         else:
@@ -148,9 +205,7 @@ def verify_safe_prefix(s3_key: str):
     parts = s3_key.split("/")
     logging.debug(f"parts of the s3_key: {parts}")
     if parts[3] != "stac":
-        raise ValueError(
-            f"prefix must begin with stac/, user provided {s3_key} needs to be corrected"
-        )
+        raise ValueError(f"prefix must begin with stac/, user provided {s3_key} needs to be corrected")
 
 
 def init_s3_resources(minio_mode: bool = False):
@@ -160,13 +215,9 @@ def init_s3_resources(minio_mode: bool = False):
             aws_secret_access_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
         )
 
-        s3_client = session.client(
-            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
-        )
+        s3_client = session.client("s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT"))
 
-        s3_resource = session.resource(
-            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
-        )
+        s3_resource = session.resource("s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT"))
 
         return session, s3_client, s3_resource
     else:
@@ -201,9 +252,7 @@ def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):
     while True:
         resp = s3_client.list_objects_v2(**kwargs)
         keys += [
-            obj["Key"]
-            for obj in resp["Contents"]
-            if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
+            obj["Key"] for obj in resp["Contents"] if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
         ]
         try:
             kwargs["ContinuationToken"] = resp["NextContinuationToken"]

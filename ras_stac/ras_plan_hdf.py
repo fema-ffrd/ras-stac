@@ -19,6 +19,7 @@ from .utils.s3_utils import (
     init_s3_resources,
     get_basic_object_metadata,
     copy_item_to_s3,
+    read_ras_plan_from_s3,
 )
 
 
@@ -44,12 +45,8 @@ def new_plan_item(
     minio_mode: bool = False,
 ):
     verify_safe_prefix(new_plan_item_s3_key)
-    plan_item_public_url = s3_key_public_url_converter(
-        new_plan_item_s3_key, minio_mode=minio_mode
-    )
-    geom_item_public_url = s3_key_public_url_converter(
-        geom_item_s3_key, minio_mode=minio_mode
-    )
+    plan_item_public_url = s3_key_public_url_converter(new_plan_item_s3_key, minio_mode=minio_mode)
+    geom_item_public_url = s3_key_public_url_converter(geom_item_s3_key, minio_mode=minio_mode)
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_hdf)
@@ -66,18 +63,15 @@ def new_plan_item(
     geom_item = pystac.Item.from_file(geom_item_public_url)
 
     logging.info("fetching plan metadata")
-    plan_meta = get_simulation_metadata(plan_hdf, sim_id, minio_mode=minio_mode)
+    plan_hdf_obj = read_ras_plan_from_s3(plan_hdf, minio_mode)
+    plan_meta = get_simulation_metadata(plan_hdf_obj, sim_id)
     if plan_meta:
         try:
             logging.info("creating plan item")
             if item_props_to_remove:
-                plan_item = create_model_simulation_item(
-                    geom_item, plan_meta, sim_id, item_props_to_remove
-                )
+                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, item_props_to_remove)
             else:
-                plan_item = create_model_simulation_item(
-                    geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES
-                )
+                plan_item = create_model_simulation_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
         except TypeError:
             return logging.error(
                 f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata \

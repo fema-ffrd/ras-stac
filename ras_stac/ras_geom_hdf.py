@@ -16,6 +16,7 @@ from .utils.s3_utils import (
     init_s3_resources,
     get_basic_object_metadata,
     copy_item_to_s3,
+    read_ras_geom_from_s3,
 )
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
@@ -44,9 +45,7 @@ def new_geom_item(
 ):
     verify_safe_prefix(new_item_s3_key)
     logging.info(f"Creating geom item: {new_item_s3_key}")
-    item_public_url = s3_key_public_url_converter(
-        new_item_s3_key, minio_mode=minio_mode
-    )
+    item_public_url = s3_key_public_url_converter(new_item_s3_key, minio_mode=minio_mode)
     logging.debug(f"item_public_url: {item_public_url}")
 
     # Prep parameters
@@ -56,12 +55,11 @@ def new_geom_item(
     _, s3_client, s3_resource = init_s3_resources(minio_mode=minio_mode)
     bucket = s3_resource.Bucket(bucket_name)
     # Create geometry item
+    geom_hdf_obj, ras_model_name = read_ras_geom_from_s3(geom_hdf, minio_mode)
     if item_props_to_remove:
-        item = create_model_item(geom_hdf, item_props_to_remove, minio_mode=minio_mode)
+        item = create_model_item(geom_hdf_obj, item_props_to_remove, ras_model_name)
     else:
-        item = create_model_item(
-            geom_hdf, GEOM_HDF_IGNORE_PROPERTIES, minio_mode=minio_mode
-        )
+        item = create_model_item(geom_hdf_obj, GEOM_HDF_IGNORE_PROPERTIES, ras_model_name)
 
     if item_props_to_add:
         item.properties.update(item_props_to_add)
