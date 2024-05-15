@@ -7,7 +7,7 @@ from papipyplug import parse_input, plugin_logger, print_results
 from typing import List
 
 from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
-from .utils.ras_stac import (
+from .utils.ras_utils import (
     get_simulation_metadata,
     create_model_simulation_item,
     ras_plan_asset_info,

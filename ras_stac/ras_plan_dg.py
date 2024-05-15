@@ -8,7 +8,7 @@ from papipyplug import parse_input, plugin_logger, print_results
 
 from .utils.common import check_params
 from .utils.dg_utils import create_depth_grid_item
-from .utils.ras_stac import ras_plan_asset_info
+from .utils.ras_utils import ras_plan_asset_info
 from .utils.s3_utils import (
     verify_safe_prefix,
     s3_key_public_url_converter,

@@ -8,7 +8,7 @@ from papipyplug import parse_input, plugin_logger, print_results
 from typing import List
 
 from .utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
-from .utils.ras_stac import create_model_item, new_geom_assets, ras_geom_asset_info
+from .utils.ras_utils import create_model_item, new_geom_assets, ras_geom_asset_info
 from .utils.s3_utils import (
     verify_safe_prefix,
     s3_key_public_url_converter,
