@@ -103,15 +103,6 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
         raise KeyError(f"Unable to access {obj.key} check that key exists and you have access")
 
 
-class DateTimeEncoder(json.JSONEncoder):
-    """JSON encoder for handling datetime objects."""
-
-    def default(self, obj):
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        return json.JSONEncoder.default(self, obj)
-
-
 def copy_item_to_s3(item, s3_key, s3client):
     """
     This function copies an item to an AWS S3 bucket.
@@ -128,7 +119,7 @@ def copy_item_to_s3(item, s3_key, s3client):
     # s3 = boto3.client("s3")
     bucket, key = split_s3_key(s3_key)
 
-    item_json = json.dumps(item.to_dict(), cls=DateTimeEncoder).encode("utf-8")
+    item_json = json.dumps(item.to_dict()).encode("utf-8")
 
     s3client.put_object(Body=item_json, Bucket=bucket, Key=key)
 

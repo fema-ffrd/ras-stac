@@ -6,6 +6,7 @@ from typing import List
 import shapely
 from pathlib import Path
 import re
+from datetime import datetime
 
 from rashdf import RasPlanHdf, RasGeomHdf
 from rashdf.utils import parse_duration
@@ -108,12 +109,13 @@ class RasStacGeom:
                 f"Could not find data for 'geometry:geometry_time' while creating model item for {ras_model_name}."
             )
 
-        # Remove unwanted properties
         for prop in props_to_remove:
             try:
                 del properties[prop]
             except KeyError:
                 logging.warning(f"Failed removing {prop}, property not found")
+
+        iso_properties = properties_to_isoformat(properties)
 
         if not stac_item_id:
             stac_item_id = ras_model_name
@@ -123,7 +125,7 @@ class RasStacGeom:
             geometry=json.loads(shapely.to_geojson(perimeter_polygon)),
             bbox=perimeter_polygon.bounds,
             datetime=geometry_time,
-            properties=properties,
+            properties=iso_properties,
         )
         return item
 
@@ -174,6 +176,8 @@ class RasStacPlan(RasStacGeom):
             except KeyError:
                 logging.warning(f"Failed to remove property:{prop} not found in simulation results metadata.")
 
+        properties = properties_to_isoformat(results_meta)
+
         item = pystac.Item(
             id=model_sim_id,
             geometry=ras_item.geometry,
@@ -181,7 +185,7 @@ class RasStacPlan(RasStacGeom):
             start_datetime=start_datetime,
             end_datetime=end_datetime,
             datetime=start_datetime,
-            properties=results_meta,
+            properties=properties,
         )
         return item
 
@@ -516,3 +520,13 @@ def ras_perimeter(rg: RasGeomHdf, simplify: float = None, crs: str = "EPSG:4326"
     else:
         perimeter_polygon = perimeter.geometry.unary_union
     return perimeter_polygon
+
+
+def properties_to_isoformat(properties):
+    """Converts datetime objects in properties to isoformat"""
+    for k, v in properties.items():
+        if isinstance(v, list):
+            properties[k] = [item.isoformat() if isinstance(item, datetime) else item for item in v]
+        elif isinstance(v, datetime):
+            properties[k] = v.isoformat()
+    return properties
