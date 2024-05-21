@@ -7,7 +7,6 @@ import os
 from rashdf import RasPlanHdf, RasGeomHdf
 from pathlib import Path
 
-from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
 from mypy_boto3_s3.service_resource import ObjectSummary
 
