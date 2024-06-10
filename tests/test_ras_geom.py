@@ -6,7 +6,12 @@ import json
 import sys
 
 sys.path.append("../")
-from ras_stac.utils.ras_utils import RasStacGeom, to_snake_case, prep_stac_attrs, properties_to_isoformat
+from ras_stac.utils.ras_utils import (
+    RasStacGeom,
+    to_snake_case,
+    prep_stac_attrs,
+    properties_to_isoformat,
+)
 
 TEST_DATA = Path("data")
 TEST_JSON = TEST_DATA / "json"
@@ -18,7 +23,6 @@ TEST_GEOM_PROPERTIES = TEST_JSON / "test_geom_properties.json"
 
 
 def test_geom_stac_item():
-
     ghdf = RasGeomHdf(TEST_GEOM)
     ras_stac_geom = RasStacGeom(ghdf)
     item = ras_stac_geom.to_item(props_to_remove=[], ras_model_name="test-1")
@@ -73,5 +77,8 @@ def test_prep_stac_attrs():
     expected_result = {"attribute_one": "Value1", "attribute_two": "Value2"}
     assert prep_stac_attrs(attrs) == expected_result
 
-    expected_result_with_prefix = {"prefix:attribute_one": "Value1", "prefix:attribute_two": "Value2"}
+    expected_result_with_prefix = {
+        "prefix:attribute_one": "Value1",
+        "prefix:attribute_two": "Value2",
+    }
     assert prep_stac_attrs(attrs, prefix="prefix") == expected_result_with_prefix

@@ -16,7 +16,9 @@ def stac_item_to_json(item: pystac.Item, filename: str):
         f.write(item_json)
 
 
-def create_perimeter_json(ras_stac_geom: RasStacGeom, output_json_fn: str = "test_perimeter.json"):
+def create_perimeter_json(
+    ras_stac_geom: RasStacGeom, output_json_fn: str = "test_perimeter.json"
+):
     perimeter = ras_stac_geom.get_perimeter()
     geometry = json.loads(shapely.to_geojson(perimeter))
     bounds = perimeter.bounds
@@ -25,8 +27,9 @@ def create_perimeter_json(ras_stac_geom: RasStacGeom, output_json_fn: str = "tes
         json.dump(test_perimeter, f)
 
 
-def geom_properties_to_json(ras_stac_geom: RasStacGeom, output_json_fn: str = "test_geom_properties.json"):
-
+def geom_properties_to_json(
+    ras_stac_geom: RasStacGeom, output_json_fn: str = "test_geom_properties.json"
+):
     properties = ras_stac_geom.get_stac_geom_attrs()
     iso_properties = properties_to_isoformat(properties)
 
@@ -34,8 +37,9 @@ def geom_properties_to_json(ras_stac_geom: RasStacGeom, output_json_fn: str = "t
         json.dump(iso_properties, f)
 
 
-def plan_attrs_to_json(ras_stac_plan: RasStacPlan, output_json_fn: str = "test_plan_attrs.json"):
-
+def plan_attrs_to_json(
+    ras_stac_plan: RasStacPlan, output_json_fn: str = "test_plan_attrs.json"
+):
     plan_attrs = ras_stac_plan.get_stac_plan_attrs()
     iso_attrs = properties_to_isoformat(plan_attrs)
 
@@ -43,8 +47,9 @@ def plan_attrs_to_json(ras_stac_plan: RasStacPlan, output_json_fn: str = "test_p
         json.dump(iso_attrs, f)
 
 
-def plan_results_attrs_to_json(ras_stac_plan: RasStacPlan, output_json_fn: str = "test_plan_results_attrs.json"):
-
+def plan_results_attrs_to_json(
+    ras_stac_plan: RasStacPlan, output_json_fn: str = "test_plan_results_attrs.json"
+):
     plan_results_attrs = ras_stac_plan.get_stac_plan_results_attrs()
     iso_attrs = properties_to_isoformat(plan_results_attrs)
 

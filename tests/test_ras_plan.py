@@ -19,12 +19,13 @@ TEST_PLAN_ITEM = TEST_JSON / "test_plan_item.json"
 
 
 def test_plan_stac_item():
-
     phdf = RasPlanHdf(TEST_PLAN)
     ras_stac_plan = RasStacPlan(phdf)
     geom_item = pystac.Item.from_file(TEST_GEOM_ITEM)
     plan_meta = ras_stac_plan.get_simulation_metadata(simulation="test-1")
-    plan_item = ras_stac_plan.to_item(geom_item, plan_meta, model_sim_id="test-1", item_props_to_remove=[])
+    plan_item = ras_stac_plan.to_item(
+        geom_item, plan_meta, model_sim_id="test-1", item_props_to_remove=[]
+    )
     plan_item.validate()
 
     with open(TEST_PLAN_ITEM, "r") as f:

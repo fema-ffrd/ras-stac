@@ -41,8 +41,12 @@ def new_plan_dg_item(
     logging.info("Creating plan item")
     verify_safe_prefix(new_dg_item_s3_key)
 
-    dg_item_public_url = s3_key_public_url_converter(new_dg_item_s3_key, minio_mode=minio_mode)
-    plan_item_public_url = s3_key_public_url_converter(plan_item_s3_key, minio_mode=minio_mode)
+    dg_item_public_url = s3_key_public_url_converter(
+        new_dg_item_s3_key, minio_mode=minio_mode
+    )
+    plan_item_public_url = s3_key_public_url_converter(
+        plan_item_s3_key, minio_mode=minio_mode
+    )
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_dg)
