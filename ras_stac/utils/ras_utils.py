@@ -254,7 +254,7 @@ class RasStacPlan(RasStacGeom):
         summary_attrs = self.rp.get_results_unsteady_summary_attrs()
         if summary_attrs is not None:
             summary_stac_attrs = prep_stac_attrs(summary_attrs, prefix="Results Summary")
-            computation_time_total = summary_stac_attrs.get("results_summary:computation_time_total")
+            computation_time_total = str(summary_stac_attrs.get("results_summary:computation_time_total"))
             results_summary = {
                 "results_summary:computation_time_total": computation_time_total,
                 "results_summary:run_time_window": summary_stac_attrs.get("results_summary:run_time_window"),
