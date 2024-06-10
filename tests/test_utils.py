@@ -6,6 +6,8 @@ import sys
 sys.path.append("../")
 from ras_stac.utils.ras_utils import RasStacGeom, properties_to_isoformat, RasStacPlan
 
+### Functions for test items creation
+
 
 def stac_item_to_json(item: pystac.Item, filename: str):
     """Writes a STAC item to a JSON file."""
