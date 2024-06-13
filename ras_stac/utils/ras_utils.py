@@ -45,25 +45,17 @@ class RasStacGeom:
 
         structures_attrs = self.rg.get_geom_structures_attrs()
         if structures_attrs is not None:
-            structures_stac_attrs = prep_stac_attrs(
-                structures_attrs, prefix="Structures"
-            )
+            structures_stac_attrs = prep_stac_attrs(structures_attrs, prefix="Structures")
             stac_geom_attrs.update(structures_stac_attrs)
         else:
             logging.warning("No geometry structures attributes found.")
 
         d2_flow_area_attrs = self.rg.get_geom_2d_flow_area_attrs()
         if d2_flow_area_attrs is not None:
-            d2_flow_area_stac_attrs = prep_stac_attrs(
-                d2_flow_area_attrs, prefix="2D Flow Areas"
-            )
-            cell_average_size = d2_flow_area_stac_attrs.get(
-                "2d_flow_area:cell_average_size", None
-            )
+            d2_flow_area_stac_attrs = prep_stac_attrs(d2_flow_area_attrs, prefix="2D Flow Areas")
+            cell_average_size = d2_flow_area_stac_attrs.get("2d_flow_area:cell_average_size", None)
             if cell_average_size is not None:
-                d2_flow_area_stac_attrs["2d_flow_area:cell_average_length"] = (
-                    cell_average_size**0.5
-                )
+                d2_flow_area_stac_attrs["2d_flow_area:cell_average_length"] = cell_average_size**0.5
             else:
                 logging.warning("Unable to add cell average size to attributes.")
             stac_geom_attrs.update(d2_flow_area_stac_attrs)
@@ -109,9 +101,7 @@ class RasStacGeom:
 
         properties = self.get_stac_geom_attrs()
         if not properties:
-            raise AttributeError(
-                f"Could not find properties while creating model item for {ras_model_name}."
-            )
+            raise AttributeError(f"Could not find properties while creating model item for {ras_model_name}.")
 
         geometry_time = properties.get("geometry:geometry_time")
         if not geometry_time:
@@ -184,9 +174,7 @@ class RasStacPlan(RasStacGeom):
             try:
                 del results_meta[prop]
             except KeyError:
-                logging.warning(
-                    f"Failed to remove property:{prop} not found in simulation results metadata."
-                )
+                logging.warning(f"Failed to remove property:{prop} not found in simulation results metadata.")
 
         properties = properties_to_isoformat(results_meta)
 
@@ -221,18 +209,14 @@ class RasStacPlan(RasStacGeom):
 
         plan_info_attrs = self.rp.get_plan_info_attrs()
         if plan_info_attrs is not None:
-            plan_info_stac_attrs = prep_stac_attrs(
-                plan_info_attrs, prefix="Plan Information"
-            )
+            plan_info_stac_attrs = prep_stac_attrs(plan_info_attrs, prefix="Plan Information")
             stac_plan_attrs.update(plan_info_stac_attrs)
         else:
             logging.warning("No plan information attributes found.")
 
         plan_params_attrs = self.rp.get_plan_param_attrs()
         if plan_params_attrs is not None:
-            plan_params_stac_attrs = prep_stac_attrs(
-                plan_params_attrs, prefix="Plan Parameters"
-            )
+            plan_params_stac_attrs = prep_stac_attrs(plan_params_attrs, prefix="Plan Parameters")
             stac_plan_attrs.update(plan_params_stac_attrs)
         else:
             logging.warning("No plan parameters attributes found.")
@@ -262,46 +246,30 @@ class RasStacPlan(RasStacGeom):
 
         unsteady_results_attrs = self.rp.get_results_unsteady_attrs()
         if unsteady_results_attrs is not None:
-            unsteady_results_stac_attrs = prep_stac_attrs(
-                unsteady_results_attrs, prefix="Unsteady Results"
-            )
+            unsteady_results_stac_attrs = prep_stac_attrs(unsteady_results_attrs, prefix="Unsteady Results")
             results_attrs.update(unsteady_results_stac_attrs)
         else:
             logging.warning("No unsteady results attributes found.")
 
         summary_attrs = self.rp.get_results_unsteady_summary_attrs()
         if summary_attrs is not None:
-            summary_stac_attrs = prep_stac_attrs(
-                summary_attrs, prefix="Results Summary"
-            )
-            computation_time_total = str(
-                summary_stac_attrs.get("results_summary:computation_time_total")
-            )
+            summary_stac_attrs = prep_stac_attrs(summary_attrs, prefix="Results Summary")
+            computation_time_total = str(summary_stac_attrs.get("results_summary:computation_time_total"))
             results_summary = {
                 "results_summary:computation_time_total": computation_time_total,
-                "results_summary:run_time_window": summary_stac_attrs.get(
-                    "results_summary:run_time_window"
-                ),
-                "results_summary:solution": summary_stac_attrs.get(
-                    "results_summary:solution"
-                ),
+                "results_summary:run_time_window": summary_stac_attrs.get("results_summary:run_time_window"),
+                "results_summary:solution": summary_stac_attrs.get("results_summary:solution"),
             }
             if computation_time_total is not None:
-                computation_time_total_minutes = (
-                    parse_duration(computation_time_total).total_seconds() / 60
-                )
-                results_summary["results_summary:computation_time_total_minutes"] = (
-                    computation_time_total_minutes
-                )
+                computation_time_total_minutes = parse_duration(computation_time_total).total_seconds() / 60
+                results_summary["results_summary:computation_time_total_minutes"] = computation_time_total_minutes
             results_attrs.update(results_summary)
         else:
             logging.warning("No unsteady results summary attributes found.")
 
         volume_accounting_attrs = self.rp.get_results_volume_accounting_attrs()
         if volume_accounting_attrs is not None:
-            volume_accounting_stac_attrs = prep_stac_attrs(
-                volume_accounting_attrs, prefix="Volume Accounting"
-            )
+            volume_accounting_stac_attrs = prep_stac_attrs(volume_accounting_attrs, prefix="Volume Accounting")
             results_attrs.update(volume_accounting_stac_attrs)
         else:
             logging.warning("No results volume accounting attributes found.")
@@ -554,13 +522,18 @@ def ras_perimeter(rg: RasGeomHdf, simplify: float = None, crs: str = "EPSG:4326"
     return perimeter_polygon
 
 
-def properties_to_isoformat(properties):
-    """Converts datetime objects in properties to isoformat"""
+def properties_to_isoformat(properties: dict):
+    """Converts datetime objects in properties to isoformat
+
+    Parameters:
+        properties (dict): Properties dictionary with datetime object values
+
+    Returns:
+        properties (dict): Properties dictionary with datetime objects converted to isoformat
+    """
     for k, v in properties.items():
         if isinstance(v, list):
-            properties[k] = [
-                item.isoformat() if isinstance(item, datetime) else item for item in v
-            ]
+            properties[k] = [item.isoformat() if isinstance(item, datetime) else item for item in v]
         elif isinstance(v, datetime):
             properties[k] = v.isoformat()
     return properties
