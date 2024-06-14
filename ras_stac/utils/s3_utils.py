@@ -34,7 +34,7 @@ def read_ras_geom_from_s3(ras_geom_hdf_url: str, minio_mode: bool = False):
     pattern = r".*\.g[0-9]{2}\.hdf$"
     if not re.fullmatch(pattern, ras_geom_hdf_url):
         raise ValueError(
-            f"RAS plan URL does not match pattern {pattern}: {ras_geom_hdf_url}"
+            f"RAS geom URL does not match pattern {pattern}: {ras_geom_hdf_url}"
         )
 
     ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
