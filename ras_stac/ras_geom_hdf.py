@@ -8,7 +8,7 @@ from papipyplug import parse_input, plugin_logger, print_results
 from typing import List
 
 from .utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
-from .utils.ras_stac import create_model_item, new_geom_assets, ras_geom_asset_info
+from .utils.ras_utils import RasStacGeom, new_geom_assets, ras_geom_asset_info
 from .utils.s3_utils import (
     verify_safe_prefix,
     s3_key_public_url_converter,
@@ -16,6 +16,7 @@ from .utils.s3_utils import (
     init_s3_resources,
     get_basic_object_metadata,
     copy_item_to_s3,
+    read_ras_geom_from_s3,
 )
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
@@ -56,12 +57,12 @@ def new_geom_item(
     _, s3_client, s3_resource = init_s3_resources(minio_mode=minio_mode)
     bucket = s3_resource.Bucket(bucket_name)
     # Create geometry item
+    geom_hdf_obj, ras_model_name = read_ras_geom_from_s3(geom_hdf, minio_mode)
+    ras_stac_geom = RasStacGeom(geom_hdf_obj)
     if item_props_to_remove:
-        item = create_model_item(geom_hdf, item_props_to_remove, minio_mode=minio_mode)
+        item = ras_stac_geom.to_item(item_props_to_remove, ras_model_name)
     else:
-        item = create_model_item(
-            geom_hdf, GEOM_HDF_IGNORE_PROPERTIES, minio_mode=minio_mode
-        )
+        item = ras_stac_geom.to_item(GEOM_HDF_IGNORE_PROPERTIES, ras_model_name)
 
     if item_props_to_add:
         item.properties.update(item_props_to_add)

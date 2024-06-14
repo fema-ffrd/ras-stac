@@ -3,8 +3,9 @@ import logging
 import os
 import pystac
 import rasterio
+import rasterio.warp
 
-from datetime import datetime
+from datetime import datetime, timezone
 from mypy_boto3_s3.service_resource import Object
 from pathlib import Path
 from rasterio.session import AWSSession
@@ -91,9 +92,9 @@ def bbox_to_polygon(bbox) -> Polygon:
     return Polygon(
         [
             [min_x, min_y],
-            [min_x, max_y],
-            [max_x, max_y],
             [max_x, min_y],
+            [max_x, max_y],
+            [min_x, max_y],
         ]
     )
 
@@ -125,7 +126,7 @@ def create_depth_grid_item(
         id=item_id,
         properties={},
         bbox=bbox,
-        datetime=datetime.now(),
+        datetime=datetime.now(timezone.utc),
         geometry=json.loads(to_geojson(geometry)),
     )
     # non_null = not raster_is_all_null(depth_grid.key)

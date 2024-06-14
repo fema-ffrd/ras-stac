@@ -4,8 +4,9 @@ import json
 import logging
 import re
 import os
+from rashdf import RasPlanHdf, RasGeomHdf
+from pathlib import Path
 
-from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
 from mypy_boto3_s3.service_resource import ObjectSummary
 
@@ -13,6 +14,73 @@ logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
 load_dotenv(find_dotenv())
+
+
+def read_ras_geom_from_s3(ras_geom_hdf_url: str, minio_mode: bool = False):
+    """
+    Reads a RAS geometry HDF file from an S3 URL.
+
+    Parameters:
+        ras_geom_hdf_url (str): The URL of the RAS geometry HDF file.
+        minio_mode (bool, optional): If True, uses MinIO endpoint for S3. Defaults to False.
+
+    Returns:
+        geom_hdf_obj (RasGeomHdf): The RasGeomHdf object.
+        ras_model_name (str): The RAS model name.
+
+    Raises:
+        ValueError: If the provided URL does not have a '.hdf' suffix.
+    """
+    pattern = r".*\.g[0-9]{2}\.hdf$"
+    if not re.fullmatch(pattern, ras_geom_hdf_url):
+        raise ValueError(
+            f"RAS geom URL does not match pattern {pattern}: {ras_geom_hdf_url}"
+        )
+
+    ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
+
+    logging.info(f"Reading hdf file from {ras_geom_hdf_url}")
+    if minio_mode:
+        geom_hdf_obj = RasGeomHdf.open_uri(
+            ras_geom_hdf_url,
+            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
+        )
+    else:
+        geom_hdf_obj = RasGeomHdf.open_uri(ras_geom_hdf_url)
+
+    return geom_hdf_obj, ras_model_name
+
+
+def read_ras_plan_from_s3(ras_plan_hdf_url: str, minio_mode: bool = False):
+    """
+    Reads a RAS plan HDF file from an S3 URL.
+
+    Parameters:
+        ras_plan_hdf_url (str): The URL of the RAS plan HDF file.
+        minio_mode (bool, optional): If True, uses MinIO endpoint for S3. Defaults to False.
+
+    Returns:
+        plan_hdf_obj (RasPlanHdf): The RasPlanHdf object.
+
+    Raises:
+        ValueError: If the provided URL does not have a '.hdf' suffix.
+    """
+    pattern = r".*\.p[0-9]{2}\.hdf$"
+    if not re.fullmatch(pattern, ras_plan_hdf_url):
+        raise ValueError(
+            f"RAS plan URL does not match pattern {pattern}: {ras_plan_hdf_url}"
+        )
+
+    logging.info(f"Reading hdf file from {ras_plan_hdf_url}")
+    if minio_mode:
+        plan_hdf_obj = RasPlanHdf.open_uri(
+            ras_plan_hdf_url,
+            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
+        )
+    else:
+        plan_hdf_obj = RasPlanHdf.open_uri(ras_plan_hdf_url)
+
+    return plan_hdf_obj
 
 
 def get_basic_object_metadata(obj: ObjectSummary) -> dict:
@@ -42,15 +110,6 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
         )
 
 
-class DateTimeEncoder(json.JSONEncoder):
-    """JSON encoder for handling datetime objects."""
-
-    def default(self, obj):
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        return json.JSONEncoder.default(self, obj)
-
-
 def copy_item_to_s3(item, s3_key, s3client):
     """
     This function copies an item to an AWS S3 bucket.
@@ -67,31 +126,33 @@ def copy_item_to_s3(item, s3_key, s3client):
     # s3 = boto3.client("s3")
     bucket, key = split_s3_key(s3_key)
 
-    item_json = json.dumps(item.to_dict(), cls=DateTimeEncoder).encode("utf-8")
+    item_json = json.dumps(item.to_dict()).encode("utf-8")
 
     s3client.put_object(Body=item_json, Bucket=bucket, Key=key)
 
 
-def split_s3_key(s3_key: str) -> tuple[str, str]:
+def split_s3_key(s3_path: str) -> tuple[str, str]:
     """
-    This function splits an S3 key into the bucket name and the key.
+    This function splits an S3 path into the bucket name and the key.
 
     Parameters:
-        s3_key (str): The S3 key to split. It should be in the format 's3://bucket/key'.
+        s3_path (str): The S3 path to split. It should be in the format 's3://bucket/key'.
 
     Returns:
-        tuple: A tuple containing the bucket name and the key. If the S3 key does not contain a key, the second element
+        tuple: A tuple containing the bucket name and the key. If the S3 path does not contain a key, the second element
           of the tuple will be None.
 
     The function performs the following steps:
-        1. Removes the 's3://' prefix from the S3 key.
+        1. Removes the 's3://' prefix from the S3 path.
         2. Splits the remaining string on the first '/' character.
         3. Returns the first part as the bucket name and the second part as the key. If there is no '/', the key will
           be None.
     """
-    parts = s3_key.replace("s3://", "").split("/", 1)
-    bucket = parts[0]
-    key = parts[1] if len(parts) > 1 else None
+    if not s3_path.startswith("s3://"):
+        raise ValueError(f"s3_path does not start with s3://: {s3_path}")
+    bucket, _, key = s3_path[5:].partition("/")
+    if not key:
+        raise ValueError(f"s3_path contains bucket only, no key: {s3_path}")
     return bucket, key
 
 
