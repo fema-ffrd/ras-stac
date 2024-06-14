@@ -19,4 +19,9 @@ This repository contains code for developing STAC items from HEC-RAS models. Cur
 3. Run the `populate-sample-data.sh` script to test set-up, connetivity, and view a sample stac catalog created using this library.
 
 
-**NOTE** It is recommended that ras-stac not be run in a container for testing and development due to networking issues that complicate use of these tools, when using minio. 
+**NOTE** It is recommended that ras-stac not be run in a container for testing and development of its full codebase due to networking issues that complicate use of these tools, when using minio. 
+
+
+## Core tests (can run locally in Docker)
+
+When `docker-test.sh` is executed, the Docker image is built and `pytest` is invoked to run the Python test scripts. This leverages test data that is included in this repository. This does not use cloud storage, s3, minio, nor other forms of network data.
