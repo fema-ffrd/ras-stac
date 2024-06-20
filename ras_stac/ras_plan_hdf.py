@@ -1,3 +1,4 @@
+from .utils.logger import setup_logging
 import logging
 import pystac
 import sys
@@ -16,17 +17,6 @@ from .utils.s3_utils import (
     get_basic_object_metadata,
     copy_item_to_s3,
     read_ras_plan_from_s3,
-)
-
-
-logging.getLogger("boto3").setLevel(logging.WARNING)
-logging.getLogger("botocore").setLevel(logging.WARNING)
-
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="""{"time": "%(asctime)s" , "level": "%(levelname)s", "message": "%(message)s"}""",
-    handlers=[logging.StreamHandler()],
 )
 
 
@@ -151,6 +141,7 @@ def main(params: dict, minio_mode=False):
 
 
 if __name__ == "__main__":
+    setup_logging()
     plugin_logger()
 
     if not load_dotenv(find_dotenv()):
