@@ -13,7 +13,7 @@ from shapely import to_geojson
 from shapely.geometry import Polygon
 from typing import Tuple
 
-from .s3_utils import s3_key_public_url_converter, get_basic_object_metadata
+from .s3_utils import s3_path_public_url_converter, get_basic_object_metadata
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -131,7 +131,7 @@ def create_depth_grid_item(
     )
     # non_null = not raster_is_all_null(depth_grid.key)
     asset = pystac.Asset(
-        href=s3_key_public_url_converter(s3_full_key, minio_mode=minio_mode),
+        href=s3_path_public_url_converter(s3_full_key, minio_mode=minio_mode),
         title=title,
         media_type=pystac.MediaType.COG,
         roles=["ras-depth-grid"],

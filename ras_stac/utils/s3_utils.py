@@ -110,7 +110,7 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
         )
 
 
-def copy_item_to_s3(item, s3_key, s3client):
+def copy_item_to_s3(item, s3_path, s3client):
     """
     This function copies an item to an AWS S3 bucket.
 
@@ -124,14 +124,14 @@ def copy_item_to_s3(item, s3_key, s3client):
         3. Puts the encoded JSON string to the specified file path in the S3 bucket.
     """
     # s3 = boto3.client("s3")
-    bucket, key = split_s3_key(s3_key)
+    bucket, key = split_s3_path(s3_path)
 
     item_json = json.dumps(item.to_dict()).encode("utf-8")
 
     s3client.put_object(Body=item_json, Bucket=bucket, Key=key)
 
 
-def split_s3_key(s3_path: str) -> tuple[str, str]:
+def split_s3_path(s3_path: str) -> tuple[str, str]:
     """
     This function splits an S3 path into the bucket name and the key.
 
@@ -156,7 +156,7 @@ def split_s3_key(s3_path: str) -> tuple[str, str]:
     return bucket, key
 
 
-def s3_key_public_url_converter(url: str, minio_mode: bool = False) -> str:
+def s3_path_public_url_converter(url: str, minio_mode: bool = False) -> str:
     """
     This function converts an S3 URL to an HTTPS URL and vice versa.
 

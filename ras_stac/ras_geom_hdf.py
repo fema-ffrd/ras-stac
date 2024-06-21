@@ -12,8 +12,8 @@ from .utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
 from .utils.ras_utils import RasStacGeom, new_geom_assets, ras_geom_asset_info
 from .utils.s3_utils import (
     verify_safe_prefix,
-    s3_key_public_url_converter,
-    split_s3_key,
+    s3_path_public_url_converter,
+    split_s3_path,
     init_s3_resources,
     get_basic_object_metadata,
     copy_item_to_s3,
@@ -23,7 +23,7 @@ from .utils.s3_utils import (
 
 def new_geom_item(
     geom_hdf: str,
-    new_item_s3_key: str,
+    new_item_s3_path: str,
     topo_assets: list = None,
     lulc_assets: list = None,
     mannings_assets: list = None,
@@ -32,15 +32,15 @@ def new_geom_item(
     item_props_to_add: dict = None,
     minio_mode=False,
 ):
-    verify_safe_prefix(new_item_s3_key)
-    logging.info(f"Creating geom item: {new_item_s3_key}")
-    item_public_url = s3_key_public_url_converter(
-        new_item_s3_key, minio_mode=minio_mode
+    verify_safe_prefix(new_item_s3_path)
+    logging.info(f"Creating geom item: {new_item_s3_path}")
+    item_public_url = s3_path_public_url_converter(
+        new_item_s3_path, minio_mode=minio_mode
     )
     logging.debug(f"item_public_url: {item_public_url}")
 
     # Prep parameters
-    bucket_name, _ = split_s3_key(geom_hdf)
+    bucket_name, _ = split_s3_path(geom_hdf)
     other_assets.append(geom_hdf)
 
     _, s3_client, s3_resource = init_s3_resources(minio_mode=minio_mode)
@@ -67,7 +67,7 @@ def new_geom_item(
     for asset_type, asset_list in geom_assets.items():
         logging.debug(asset_type)
         for asset_file in asset_list:
-            _, asset_key = split_s3_key(asset_file)
+            _, asset_key = split_s3_path(asset_file)
             logging.info(f"Adding asset {asset_file} to item")
             obj = bucket.Object(asset_key)
             try:
@@ -77,7 +77,7 @@ def new_geom_item(
                 metadata = {}
             asset_info = ras_geom_asset_info(asset_file, asset_type)
             asset = pystac.Asset(
-                s3_key_public_url_converter(asset_file, minio_mode=minio_mode),
+                s3_path_public_url_converter(asset_file, minio_mode=minio_mode),
                 extra_fields=metadata,
                 roles=asset_info["roles"],
                 description=asset_info["description"],
@@ -97,7 +97,7 @@ def new_geom_item(
 
     logging.info("Writing geom item to s3")
     item.set_self_href(item_public_url)
-    copy_item_to_s3(item, new_item_s3_key, s3_client)
+    copy_item_to_s3(item, new_item_s3_path, s3_client)
 
     logging.info("Program completed successfully")
 
@@ -109,7 +109,7 @@ def new_geom_item(
             "type": "application/json",
         },
         {
-            "href": new_item_s3_key,
+            "href": new_item_s3_path,
             "rel": "self",
             "title": "s3_key",
             "type": "application/json",
@@ -122,7 +122,7 @@ def new_geom_item(
 def main(params: dict, minio_mode=False):
     # Required parameters
     geom_hdf = params.get("geom_hdf", None)
-    item_s3_key = params.get("new_item_s3_key", None)
+    new_item_s3_path = params.get("new_item_s3_path", None)
 
     # Optional parameters
     topo_assets = params.get("topo_assets", [])
@@ -134,7 +134,7 @@ def main(params: dict, minio_mode=False):
 
     return new_geom_item(
         geom_hdf,
-        item_s3_key,
+        new_item_s3_path,
         topo_assets,
         lulc_assets,
         mannings_assets,
