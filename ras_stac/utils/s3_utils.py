@@ -10,8 +10,6 @@ from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from mypy_boto3_s3.service_resource import ObjectSummary
 
-logging.getLogger("boto3").setLevel(logging.WARNING)
-logging.getLogger("botocore").setLevel(logging.WARNING)
 
 load_dotenv(find_dotenv())
 
@@ -43,7 +41,7 @@ def read_ras_geom_from_s3(ras_geom_hdf_url: str, minio_mode: bool = False):
     if minio_mode:
         geom_hdf_obj = RasGeomHdf.open_uri(
             ras_geom_hdf_url,
-            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
+            fsspec_kwargs={"endpoint_url": os.environ["MINIO_S3_ENDPOINT"]},
         )
     else:
         geom_hdf_obj = RasGeomHdf.open_uri(ras_geom_hdf_url)
@@ -75,7 +73,7 @@ def read_ras_plan_from_s3(ras_plan_hdf_url: str, minio_mode: bool = False):
     if minio_mode:
         plan_hdf_obj = RasPlanHdf.open_uri(
             ras_plan_hdf_url,
-            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
+            fsspec_kwargs={"endpoint_url": os.environ["MINIO_S3_ENDPOINT"]},
         )
     else:
         plan_hdf_obj = RasPlanHdf.open_uri(ras_plan_hdf_url)
@@ -180,7 +178,7 @@ def s3_path_public_url_converter(url: str, minio_mode: bool = False) -> str:
             logging.info(
                 f"minio_mode | using minio endpoint for s3 url conversion: {url}"
             )
-            return f"{os.environ.get('MINIO_S3_ENDPOINT')}/{bucket}/{key}"
+            return f"{os.environ['MINIO_S3_ENDPOINT']}/{bucket}/{key}"
         else:
             return f"https://{bucket}.s3.amazonaws.com/{key}"
 
@@ -189,8 +187,8 @@ def s3_path_public_url_converter(url: str, minio_mode: bool = False) -> str:
             logging.info(
                 f"minio_mode | using minio endpoint for s3 url conversion: {url}"
             )
-            bucket = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "").split("/")[0]
-            key = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "")
+            bucket = url.replace(os.environ["MINIO_S3_ENDPOINT"], "").split("/")[0]
+            key = url.replace(os.environ["MINIO_S3_ENDPOINT"], "")
         else:
             bucket = url.replace("https://", "").split(".s3.amazonaws.com")[0]
             key = url.replace(f"https://{bucket}.s3.amazonaws.com/", "")
@@ -217,24 +215,22 @@ def verify_safe_prefix(s3_key: str):
 def init_s3_resources(minio_mode: bool = False):
     if minio_mode:
         session = boto3.Session(
-            aws_access_key_id=os.environ.get("MINIO_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
+            aws_access_key_id=os.environ["MINIO_ACCESS_KEY_ID"],
+            aws_secret_access_key=os.environ["MINIO_SECRET_ACCESS_KEY"],
         )
 
-        s3_client = session.client(
-            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
-        )
+        s3_client = session.client("s3", endpoint_url=os.environ["MINIO_S3_ENDPOINT"])
 
         s3_resource = session.resource(
-            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
+            "s3", endpoint_url=os.environ["MINIO_S3_ENDPOINT"]
         )
 
         return session, s3_client, s3_resource
     else:
         # Instantitate S3 resources
         session = boto3.Session(
-            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
         )
 
         s3_client = session.client("s3")
