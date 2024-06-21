@@ -11,8 +11,6 @@ from datetime import datetime
 from rashdf import RasPlanHdf, RasGeomHdf
 from rashdf.utils import parse_duration
 
-logging.getLogger("boto3").setLevel(logging.WARNING)
-logging.getLogger("botocore").setLevel(logging.WARNING)
 
 load_dotenv(find_dotenv())
 

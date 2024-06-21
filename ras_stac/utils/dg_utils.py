@@ -15,9 +15,6 @@ from typing import Tuple
 
 from .s3_utils import s3_path_public_url_converter, get_basic_object_metadata
 
-logging.getLogger("boto3").setLevel(logging.WARNING)
-logging.getLogger("botocore").setLevel(logging.WARNING)
-
 
 def get_raster_bounds(
     s3_key: str, aws_session: AWSSession, minio_mode: bool = False
