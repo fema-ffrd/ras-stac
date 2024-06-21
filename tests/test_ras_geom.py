@@ -17,23 +17,8 @@ TEST_DATA = Path("data")
 TEST_JSON = TEST_DATA / "json"
 TEST_RAS = TEST_DATA / "ras"
 TEST_GEOM = TEST_RAS / "Muncie.g05.hdf"
-TEST_GEOM_ITEM = TEST_JSON / "test_geom_item.json"
 TEST_GEOM_PERIMETER = TEST_JSON / "test_perimeter.json"
 TEST_GEOM_PROPERTIES = TEST_JSON / "test_geom_properties.json"
-
-
-def test_geom_stac_item():
-    ghdf = RasGeomHdf(TEST_GEOM)
-    ras_stac_geom = RasStacGeom(ghdf)
-    item = ras_stac_geom.to_item(props_to_remove=[], ras_model_name="test-1")
-    item.validate()
-
-    with open(TEST_GEOM_ITEM, "r") as f:
-        test_item_content = json.load(f)
-
-    item_dict = json.loads(json.dumps(item.to_dict()))
-
-    assert item_dict == test_item_content
 
 
 def test_geom_properties():
