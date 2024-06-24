@@ -1,14 +1,10 @@
 from pathlib import Path
 from rashdf import RasPlanHdf
-import pystac
 import json
 
-import sys
-
-sys.path.append("../")
 from ras_stac.utils.ras_utils import RasStacPlan, properties_to_isoformat
 
-TEST_DATA = Path("data")
+TEST_DATA = Path("./tests/data")
 TEST_JSON = TEST_DATA / "json"
 TEST_RAS = TEST_DATA / "ras"
 TEST_PLAN = TEST_RAS / "Muncie.p04.hdf"

@@ -1,9 +1,6 @@
 import json
 import shapely
 import pystac
-import sys
-
-sys.path.append("../")
 from ras_stac.utils.ras_utils import RasStacGeom, properties_to_isoformat, RasStacPlan
 
 ### Functions for test items creation

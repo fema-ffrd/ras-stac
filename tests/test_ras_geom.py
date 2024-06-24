@@ -3,9 +3,6 @@ from rashdf import RasGeomHdf
 import shapely
 import json
 
-import sys
-
-sys.path.append("../")
 from ras_stac.utils.ras_utils import (
     RasStacGeom,
     to_snake_case,
@@ -13,7 +10,7 @@ from ras_stac.utils.ras_utils import (
     properties_to_isoformat,
 )
 
-TEST_DATA = Path("data")
+TEST_DATA = Path("./tests/data")
 TEST_JSON = TEST_DATA / "json"
 TEST_RAS = TEST_DATA / "ras"
 TEST_GEOM = TEST_RAS / "Muncie.g05.hdf"

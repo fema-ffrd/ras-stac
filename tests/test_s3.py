@@ -1,15 +1,13 @@
-import sys
 from moto import mock_aws
 import pytest
 
-sys.path.append("../")
 from ras_stac.utils.s3_utils import *
 import pystac
 from rashdf import RasGeomHdf
 from ras_stac.utils.ras_utils import RasStacGeom, RasStacPlan
 
 
-TEST_DATA = Path("data")
+TEST_DATA = Path("./tests/data")
 TEST_JSON = TEST_DATA / "json"
 TEST_RAS = TEST_DATA / "ras"
 TEST_GEOM = TEST_RAS / "Muncie.g05.hdf"
@@ -73,14 +71,16 @@ def test_geom_item_to_s3(s3_setup):
     assert item_dict == test_item_content
 
 
-def test_copy_plan_item_to_s3(s3_setup):
+def test_plan_item_to_s3(s3_setup):
     s3_client, s3_resource = s3_setup
 
     phdf = RasPlanHdf(TEST_PLAN)
     ras_stac_plan = RasStacPlan(phdf)
     geom_item = pystac.Item.from_file(TEST_GEOM_ITEM)
     plan_meta = ras_stac_plan.get_simulation_metadata(simulation="test-1")
-    plan_item = ras_stac_plan.to_item(geom_item, plan_meta, model_sim_id="test-1", item_props_to_remove=[])
+    plan_item = ras_stac_plan.to_item(
+        geom_item, plan_meta, model_sim_id="test-1", item_props_to_remove=[]
+    )
     plan_item.validate()
 
     s3_path = "s3://test-bucket/test-plan-item.json"
