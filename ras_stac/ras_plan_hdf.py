@@ -28,22 +28,17 @@ def new_plan_item(
     asset_list: list = None,
     item_props: dict = None,
     item_props_to_remove: List = None,
-    minio_mode: bool = False,
 ):
     verify_safe_prefix(new_plan_item_s3_path)
-    plan_item_public_url = s3_path_public_url_converter(
-        new_plan_item_s3_path, minio_mode=minio_mode
-    )
-    geom_item_public_url = s3_path_public_url_converter(
-        geom_item_s3_path, minio_mode=minio_mode
-    )
+    plan_item_public_url = s3_path_public_url_converter(new_plan_item_s3_path)
+    geom_item_public_url = s3_path_public_url_converter(geom_item_s3_path)
 
     # Prep parameters
     bucket_name, _ = split_s3_path(plan_hdf)
     asset_list.append(plan_hdf)
 
     # Instantitate S3 resources
-    session, s3_client, s3_resource = init_s3_resources(minio_mode)
+    session, s3_client, s3_resource = init_s3_resources()
     bucket = s3_resource.Bucket(bucket_name)
     # AWSSession(session)
 
@@ -53,7 +48,9 @@ def new_plan_item(
     geom_item = pystac.Item.from_file(geom_item_public_url)
 
     logging.info("fetching plan metadata")
-    plan_hdf_obj = read_ras_plan_from_s3(plan_hdf, minio_mode)
+    plan_hdf_obj = read_ras_plan_from_s3(
+        plan_hdf,
+    )
     ras_stac_plan = RasStacPlan(plan_hdf_obj)
     plan_meta = ras_stac_plan.get_simulation_metadata(sim_id)
     if plan_meta:
@@ -85,7 +82,7 @@ def new_plan_item(
             metadata = get_basic_object_metadata(obj)
             asset_info = ras_plan_asset_info(asset_file)
             asset = pystac.Asset(
-                s3_path_public_url_converter(asset_file, minio_mode=minio_mode),
+                s3_path_public_url_converter(asset_file),
                 extra_fields=metadata,
                 roles=asset_info["roles"],
                 description=asset_info["description"],
@@ -116,7 +113,7 @@ def new_plan_item(
     return results
 
 
-def main(params: dict, minio_mode=False):
+def main(params: dict):
     #  Required parameters
     plan_hdf = params.get("plan_hdf", None)
     sim_id = params.get("sim_id", None)
@@ -136,7 +133,6 @@ def main(params: dict, minio_mode=False):
         asset_list,
         plan_item_props,
         item_props_to_remove,
-        minio_mode,
     )
 
 
@@ -149,5 +145,5 @@ if __name__ == "__main__":
 
     PLUGIN_PARAMS = check_params(new_plan_item)
     input_params = parse_input(sys.argv, PLUGIN_PARAMS)
-    result = main(input_params, minio_mode=True)
+    result = main(input_params)
     print_results(result)

@@ -30,23 +30,20 @@ def new_geom_item(
     other_assets: list = None,
     item_props_to_remove: List = None,
     item_props_to_add: dict = None,
-    minio_mode=False,
 ):
     verify_safe_prefix(new_item_s3_path)
     logging.info(f"Creating geom item: {new_item_s3_path}")
-    item_public_url = s3_path_public_url_converter(
-        new_item_s3_path, minio_mode=minio_mode
-    )
+    item_public_url = s3_path_public_url_converter(new_item_s3_path)
     logging.debug(f"item_public_url: {item_public_url}")
 
     # Prep parameters
     bucket_name, _ = split_s3_path(geom_hdf)
     other_assets.append(geom_hdf)
 
-    _, s3_client, s3_resource = init_s3_resources(minio_mode=minio_mode)
+    _, s3_client, s3_resource = init_s3_resources()
     bucket = s3_resource.Bucket(bucket_name)
     # Create geometry item
-    geom_hdf_obj, ras_model_name = read_ras_geom_from_s3(geom_hdf, minio_mode)
+    geom_hdf_obj, ras_model_name = read_ras_geom_from_s3(geom_hdf)
     ras_stac_geom = RasStacGeom(geom_hdf_obj)
     if item_props_to_remove:
         item = ras_stac_geom.to_item(item_props_to_remove, ras_model_name)
@@ -77,7 +74,7 @@ def new_geom_item(
                 metadata = {}
             asset_info = ras_geom_asset_info(asset_file, asset_type)
             asset = pystac.Asset(
-                s3_path_public_url_converter(asset_file, minio_mode=minio_mode),
+                s3_path_public_url_converter(asset_file),
                 extra_fields=metadata,
                 roles=asset_info["roles"],
                 description=asset_info["description"],
@@ -119,7 +116,7 @@ def new_geom_item(
     return results
 
 
-def main(params: dict, minio_mode=False):
+def main(params: dict):
     # Required parameters
     geom_hdf = params.get("geom_hdf", None)
     new_item_s3_path = params.get("new_item_s3_path", None)
@@ -141,7 +138,6 @@ def main(params: dict, minio_mode=False):
         other_assets,
         item_props_to_remove,
         item_props_to_add,
-        minio_mode,
     )
 
 
@@ -154,5 +150,5 @@ if __name__ == "__main__":
 
     PLUGIN_PARAMS = check_params(new_geom_item)
     input_params = parse_input(sys.argv, PLUGIN_PARAMS)
-    result = main(input_params, minio_mode=True)
+    result = main(input_params)
     print_results(result)
