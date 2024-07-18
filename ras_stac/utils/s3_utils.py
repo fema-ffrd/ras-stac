@@ -14,7 +14,7 @@ from mypy_boto3_s3.service_resource import ObjectSummary
 load_dotenv(find_dotenv())
 
 
-def read_ras_geom_from_s3(ras_geom_hdf_url: str):
+def read_geom_hdf_from_s3(ras_geom_hdf_url: str):
     """
     Reads a RAS geometry HDF file from an S3 URL.
 
@@ -42,7 +42,7 @@ def read_ras_geom_from_s3(ras_geom_hdf_url: str):
     return geom_hdf_obj, ras_model_name
 
 
-def read_ras_plan_from_s3(ras_plan_hdf_url: str):
+def read_plan_hdf_from_s3(ras_plan_hdf_url: str):
     """
     Reads a RAS plan HDF file from an S3 URL.
 
@@ -107,7 +107,9 @@ def copy_item_to_s3(item, s3_path, s3client):
         2. Converts the item to a dictionary, serializes it to a JSON string, and encodes it to bytes.
         3. Puts the encoded JSON string to the specified file path in the S3 bucket.
     """
-    # s3 = boto3.client("s3")
+    item_public_url = s3_path_public_url_converter(s3_path)
+    item.set_self_href(item_public_url)
+
     bucket, key = split_s3_path(s3_path)
 
     item_json = json.dumps(item.to_dict()).encode("utf-8")
