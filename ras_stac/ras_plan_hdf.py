@@ -17,18 +17,18 @@ from .utils.s3_utils import (
     init_s3_resources,
     get_basic_object_metadata,
     copy_item_to_s3,
-    read_ras_plan_from_s3,
+    read_plan_hdf_from_s3,
 )
 
 
 def new_plan_item(
     plan_hdf_obj: RasPlanHdf,
     geom_item: pystac.Item,
-    asset_bucket,
     sim_id: str,
     asset_list: list = None,
-    item_props: dict = None,
+    item_props: dict = {},
     item_props_to_remove: List = None,
+    s3_resource=None,
 ):
     ras_stac_plan = RasStacPlan(plan_hdf_obj)
     plan_meta = ras_stac_plan.get_simulation_metadata(sim_id)
@@ -36,29 +36,24 @@ def new_plan_item(
         try:
             logging.info("creating plan item")
             if item_props_to_remove:
-                plan_item = ras_stac_plan.to_item(
-                    geom_item, plan_meta, sim_id, item_props_to_remove
-                )
+                plan_item = ras_stac_plan.to_item(geom_item, plan_meta, sim_id, item_props_to_remove)
             else:
-                plan_item = ras_stac_plan.to_item(
-                    geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES
-                )
+                plan_item = ras_stac_plan.to_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
         except TypeError:
             return logging.error(
                 f"unable to retrieve model results with geom data from the given geometry item and metadata \
                     from ras stac plan. please verify plan was executed and results exist"
             )
     else:
-        raise AttributeError(
-            f"No simulation metadata retrieved from given ras stac plan"
-        )
+        raise AttributeError(f"No simulation metadata retrieved from given ras stac plan")
 
     plan_item.add_derived_from(geom_item)
     plan_item.properties.update(item_props)
 
     if asset_list:
         for asset_file in asset_list:
-            _, asset_key = split_s3_path(asset_file)
+            bucket, asset_key = split_s3_path(asset_file)
+            asset_bucket = s3_resource.Bucket(bucket)
             obj = asset_bucket.Object(asset_key)
             metadata = get_basic_object_metadata(obj)
             asset_info = ras_plan_asset_info(asset_file)
@@ -89,14 +84,11 @@ def main(params: dict):
     geom_item_public_url = s3_path_public_url_converter(geom_item_s3_path)
 
     # Prep parameters
-    bucket_name, _ = split_s3_path(plan_hdf)
     asset_list.append(plan_hdf)
 
     # Instantitate S3 resources
-    session, s3_client, s3_resource = init_s3_resources()
-    asset_bucket = s3_resource.Bucket(bucket_name)
-
-    plan_hdf_obj = read_ras_plan_from_s3(plan_hdf)
+    _, s3_client, s3_resource = init_s3_resources()
+    plan_hdf_obj = read_plan_hdf_from_s3(plan_hdf)
 
     # Create geometry item
     geom_item = pystac.Item.from_file(geom_item_public_url)
@@ -104,11 +96,11 @@ def main(params: dict):
     plan_item = new_plan_item(
         plan_hdf_obj,
         geom_item,
-        asset_bucket,
         sim_id,
         asset_list,
         plan_item_props,
         item_props_to_remove,
+        s3_resource,
     )
 
     copy_item_to_s3(plan_item, plan_item_s3_path, s3_client)
