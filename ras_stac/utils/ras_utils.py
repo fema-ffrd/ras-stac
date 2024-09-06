@@ -434,6 +434,7 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     5. Returns a dictionary with the roles, the description, and the title of the asset.
     """
     file_extension = Path(s3_key).suffix
+    full_extension = s3_key.rsplit('/')[-1].split('.',1)[1]
     title = Path(s3_key).name
     description = ""
     roles = []
@@ -448,15 +449,15 @@ def ras_plan_asset_info(s3_key: str) -> dict:
 
     if re.match("g[0-9]{2}", ras_extension):
         roles.extend(["geometry-file", "ras-file"])
+        description = """The geometry file which contains cross-sectional, hydraulic structures, and modeling approach data."""
         if file_extension != ".hdf":
             roles.extend([ pystac.MediaType.TEXT])
-            description = """The geometry file which contains cross-sectional, hydraulic structures, and modeling approach data."""
 
     elif re.match("p[0-9]{2}", ras_extension):
         roles.extend(["plan-file", "ras-file"])
+        description = """The plan file which contains a list of associated input files and all simulation options."""
         if file_extension != ".hdf":
             roles.extend([pystac.MediaType.TEXT])
-            description = """The plan file which contains a list of associated input files and all simulation options."""
     elif re.match("f[0-9]{2}", ras_extension):
         roles.extend(["steady-flow-file", "ras-file", pystac.MediaType.TEXT])
         description = """Steady Flow file which contains profile information, flow data, and boundary conditions."""
@@ -469,15 +470,9 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         roles.extend(["unsteady-file", "ras-file", pystac.MediaType.TEXT])
         description = """The unsteady file contains hydrographs amd initial conditions, as well as any flow options."""
 
-    # elif re.match("O[0-9]{2}", ras_extension):
-    #     roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
-    #     description = (
-    #         """Output file for ras which contains all of the computed results."""
-    #     )
-
     elif re.match("r[0-9]{2}", ras_extension):
         roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
-        description = """Run file for ras which contains all the necessary input data required for the RAS computational engine."""
+        description = """Run file for steady flow analysis which contains all the necessary input data required for the RAS computational engine."""
 
     elif re.match("hyd[0-9]{2}", ras_extension):
         roles.extend(
@@ -537,9 +532,13 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         roles.extend(["binary-log-file", "ras-file", pystac.MediaType.TEXT])
         description = """Binary Log file."""
 
-    elif ras_extension == "prj":
+    elif ras_extension == "prj" and title != "MMC_Projection.prj":
         roles.extend(["project-file", "ras-file", pystac.MediaType.TEXT])
         description = """Project file for ras. Contains current plan files, units, and project description."""
+
+    elif ras_extension == "prj" and title == "MMC_Projection.prj":
+        roles.extend(["projection-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Projection file."""
 
     elif ras_extension == "dss":
         roles.extend(["ras-dss", "ras-file"])
@@ -559,11 +558,6 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         description = """GeoPackage file with geometry data extracted from .gxx file."""
         title = "GeoPackage_file"
 
-    elif ras_extension == "txt":
-        roles.extend(["computational-message-file", "ras-file", pystac.MediaType.TEXT])
-        description = """Computational Message text file which contains the computational messages that pop up in the computation window."""
-        title = "Computational_message_file"
-
     elif ras_extension == "rst":
         roles.extend(["restart-file", "ras-file", pystac.MediaType.TEXT])
         description = """Restart file."""
@@ -577,7 +571,7 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         roles.extend(["siam-output-file", "ras-file", pystac.MediaType.TEXT])
         description = """SIAM Output Data file."""
 
-    elif ras_extension == "bco[0-9]{2}":
+    elif re.match("bco[0-9]{2}", ras_extension):
         roles.extend(["water-quality-log", "ras-file", pystac.MediaType.TEXT])
         description = """Water quality log file."""
         title = "Water_quality_log_file"
@@ -586,10 +580,40 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         roles.extend(["color-scales", "ras-file", pystac.MediaType.TEXT])
         description = """File that contains the water quality color scale."""
 
+    elif full_extension == "comp_msgs.txt":
+        roles.extend(["computational-message-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Computational Message text file which contains the computational messages that pop up in the computation window."""
+        title = "Computational_message_file"
+
+    elif re.match("x[0-9]{2}", ras_extension):
+        roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
+        description = ("""Run file for Unsteady Flow.""")
+
+    elif re.match("O[0-9]{2}", full_extension):
+        roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
+        description = ("""Output file for ras which contains all of the computed results.""")
+
+    elif re.match("IC.O[0-9]{2}", full_extension):
+        roles.extend(["initial-conditions-file", "ras-file", pystac.MediaType.TEXT])
+        description = ("""Initial conditions file for unsteady flow plan.""")
+
+    elif re.match("p[0-9]{2}.rst", full_extension):
+        roles.extend(["restart-file", "ras-file", pystac.MediaType.TEXT])
+        description = ("""Restart file.""")
+        
+    elif full_extension == "rasmap":
+        roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Ras Mapper file."""
+
+    elif full_extension == "rasmap.backup":
+        roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Backup Ras Mapper file."""
+
+    elif full_extension == "rasmap.original":
+        roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Original Ras Mapper file."""
     else:
         roles.extend(["ras-file"])
-
-    # TODO: Add initial conditions file
 
     return {"roles": roles, "description": description, "title": title}
 
