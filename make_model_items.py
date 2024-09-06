@@ -1,9 +1,8 @@
-from rashdf import RasGeomHdf
 from ras_stac.ras_geom_hdf import new_geom_item
 from ras_stac.utils.s3_utils import *
-from model_items_utils import create_model_thumbnails, break_lines_to_metadata, get_all_model_files
+from model_items_utils import create_model_thumbnails, bc_lines_to_metadata, get_all_model_files
 
-model_name = "Greenbrier"
+model_name = "BluestoneLocal"
 
 bucket_name = "kanawha-pilot"
 model_prefix = f"FFRD_Kanawha_Compute/ras/{model_name}"
@@ -31,7 +30,7 @@ except:
 bc_lines = ras_geom_hdf.bc_lines()
 mesh_polygons = ras_geom_hdf.mesh_cell_polygons()
 
-bcline_metadata = break_lines_to_metadata(bc_lines)
+bcline_metadata = bc_lines_to_metadata(bc_lines)
 
 
 create_model_thumbnails(model_breaklines, bc_lines, mesh_polygons, ras_model_name, png_output_s3_path, s3_client)
