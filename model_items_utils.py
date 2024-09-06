@@ -17,10 +17,25 @@ def create_model_thumbnails(breaklines_gdf, bc_lines_gdf, mesh_polygons_gdf, tit
     
     # Plot each GeoDataFrame
     mesh_polygons_geo.plot(ax=ax, edgecolor='silver', facecolor='none', linestyle='-', alpha=0.7, label='Mesh Polygons')
+
+    # Manually add legend because the mesh polygons wont show in legend with facecolor='none' when plotted
+    legend_handles = [Line2D([0], [0], color='silver', linestyle='-', linewidth=2, label='Mesh Polygons')]
+
     if breaklines_gdf is not None:
         breaklines_geo.plot(ax=ax, edgecolor='red', linestyle='-', alpha=0.7, label='Breaklines')
-    bc_lines_geo.plot(ax=ax, edgecolor='blue', linestyle='-', alpha=0.7, label='BC Lines')
+        legend_handles.insert(0, Line2D([0], [0], color='red', linestyle='-', linewidth=2, label='Breaklines'))
 
+    # Add a fake label for the "BC Lines" heading
+    legend_handles.append(Line2D([0], [0], color='none', linestyle='None', label=''))
+    legend_handles.append(Line2D([0], [0], color='none', linestyle='None', label='BC Lines'))
+
+    colors = plt.cm.get_cmap('Dark2', len(bc_lines_geo))
+
+    # Plot each bc_line with a different color and add to the legend
+    for bc_line, color in zip(bc_lines_geo.itertuples(), colors.colors):
+        x_coords, y_coords = bc_line.geometry.xy
+        ax.plot(x_coords, y_coords, color=color, linestyle='-', linewidth=2, label=bc_line.name)
+        legend_handles.append(Line2D([0], [0], color=color, linestyle='-', linewidth=2, label=bc_line.name))
     # Add openstreetmap basemap
     ctx.add_basemap(ax, crs=mesh_polygons_geo.crs.to_string(), source=ctx.providers.OpenStreetMap.Mapnik, alpha=0.4)
 
@@ -28,22 +43,13 @@ def create_model_thumbnails(breaklines_gdf, bc_lines_gdf, mesh_polygons_gdf, tit
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
 
-    # Manually add legend because the mesh polygons wont show in legend with facecolor='none' when plotted
-    legend_handles = [
-        Line2D([0], [0], color='blue', linestyle='-', linewidth=2, label='BC Lines'),
-        Patch(color='silver', edgecolor='silver', label='Mesh Polygons')
-    ]
-    
-    # Add breaklines to the legend only if they are present
-    if breaklines_gdf is not None:
-        legend_handles.insert(0, Line2D([0], [0], color='red', linestyle='-', linewidth=2, label='Breaklines'))
 
-    ax.legend(handles=legend_handles, loc='upper right')
+    ax.legend(handles=legend_handles, loc='center left', bbox_to_anchor=(1, 0.5))
 
     # plt.plot()
 
     buf = BytesIO()
-    plt.savefig(buf, format="png")
+    plt.savefig(buf, format="png", bbox_inches='tight', bbox_extra_artists=[ax.get_legend()])
     buf.seek(0)
 
     plt.close(fig)
@@ -51,7 +57,7 @@ def create_model_thumbnails(breaklines_gdf, bc_lines_gdf, mesh_polygons_gdf, tit
     bucket, key = split_s3_path(png_output_s3_path)
     s3_client.put_object(Bucket=bucket, Key=key, Body=buf, ContentType="image/png")
 
-def break_lines_to_metadata(bc_lines_df):
+def bc_lines_to_metadata(bc_lines_df):
     """Reads bc line dataframe and converts to stac format for metadata"""
     bc_dict = {}
 
