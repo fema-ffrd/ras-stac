@@ -10,19 +10,16 @@ from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from mypy_boto3_s3.service_resource import ObjectSummary
 
-logging.getLogger("boto3").setLevel(logging.WARNING)
-logging.getLogger("botocore").setLevel(logging.WARNING)
 
 load_dotenv(find_dotenv())
 
 
-def read_ras_geom_from_s3(ras_geom_hdf_url: str, minio_mode: bool = False):
+def read_geom_hdf_from_s3(ras_geom_hdf_url: str):
     """
     Reads a RAS geometry HDF file from an S3 URL.
 
     Parameters:
         ras_geom_hdf_url (str): The URL of the RAS geometry HDF file.
-        minio_mode (bool, optional): If True, uses MinIO endpoint for S3. Defaults to False.
 
     Returns:
         geom_hdf_obj (RasGeomHdf): The RasGeomHdf object.
@@ -40,24 +37,17 @@ def read_ras_geom_from_s3(ras_geom_hdf_url: str, minio_mode: bool = False):
     ras_model_name = Path(ras_geom_hdf_url.replace(".hdf", "")).stem
 
     logging.info(f"Reading hdf file from {ras_geom_hdf_url}")
-    if minio_mode:
-        geom_hdf_obj = RasGeomHdf.open_uri(
-            ras_geom_hdf_url,
-            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
-        )
-    else:
-        geom_hdf_obj = RasGeomHdf.open_uri(ras_geom_hdf_url)
+    geom_hdf_obj = RasGeomHdf.open_uri(ras_geom_hdf_url)
 
     return geom_hdf_obj, ras_model_name
 
 
-def read_ras_plan_from_s3(ras_plan_hdf_url: str, minio_mode: bool = False):
+def read_plan_hdf_from_s3(ras_plan_hdf_url: str):
     """
     Reads a RAS plan HDF file from an S3 URL.
 
     Parameters:
         ras_plan_hdf_url (str): The URL of the RAS plan HDF file.
-        minio_mode (bool, optional): If True, uses MinIO endpoint for S3. Defaults to False.
 
     Returns:
         plan_hdf_obj (RasPlanHdf): The RasPlanHdf object.
@@ -72,13 +62,7 @@ def read_ras_plan_from_s3(ras_plan_hdf_url: str, minio_mode: bool = False):
         )
 
     logging.info(f"Reading hdf file from {ras_plan_hdf_url}")
-    if minio_mode:
-        plan_hdf_obj = RasPlanHdf.open_uri(
-            ras_plan_hdf_url,
-            fsspec_kwargs={"endpoint_url": os.environ.get("MINIO_S3_ENDPOINT")},
-        )
-    else:
-        plan_hdf_obj = RasPlanHdf.open_uri(ras_plan_hdf_url)
+    plan_hdf_obj = RasPlanHdf.open_uri(ras_plan_hdf_url)
 
     return plan_hdf_obj
 
@@ -110,7 +94,7 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
         )
 
 
-def copy_item_to_s3(item, s3_key, s3client):
+def copy_item_to_s3(item, s3_path, s3client):
     """
     This function copies an item to an AWS S3 bucket.
 
@@ -123,15 +107,17 @@ def copy_item_to_s3(item, s3_key, s3client):
         2. Converts the item to a dictionary, serializes it to a JSON string, and encodes it to bytes.
         3. Puts the encoded JSON string to the specified file path in the S3 bucket.
     """
-    # s3 = boto3.client("s3")
-    bucket, key = split_s3_key(s3_key)
+    item_public_url = s3_path_public_url_converter(s3_path)
+    item.set_self_href(item_public_url)
+
+    bucket, key = split_s3_path(s3_path)
 
     item_json = json.dumps(item.to_dict()).encode("utf-8")
 
     s3client.put_object(Body=item_json, Bucket=bucket, Key=key)
 
 
-def split_s3_key(s3_path: str) -> tuple[str, str]:
+def split_s3_path(s3_path: str) -> tuple[str, str]:
     """
     This function splits an S3 path into the bucket name and the key.
 
@@ -156,7 +142,7 @@ def split_s3_key(s3_path: str) -> tuple[str, str]:
     return bucket, key
 
 
-def s3_key_public_url_converter(url: str, minio_mode: bool = False) -> str:
+def s3_path_public_url_converter(url: str) -> str:
     """
     This function converts an S3 URL to an HTTPS URL and vice versa.
 
@@ -176,24 +162,11 @@ def s3_key_public_url_converter(url: str, minio_mode: bool = False) -> str:
     if url.startswith("s3"):
         bucket = url.replace("s3://", "").split("/")[0]
         key = url.replace(f"s3://{bucket}", "")[1:]
-        if minio_mode:
-            logging.info(
-                f"minio_mode | using minio endpoint for s3 url conversion: {url}"
-            )
-            return f"{os.environ.get('MINIO_S3_ENDPOINT')}/{bucket}/{key}"
-        else:
-            return f"https://{bucket}.s3.amazonaws.com/{key}"
+        return f"https://{bucket}.s3.amazonaws.com/{key}"
 
     elif url.startswith("http"):
-        if minio_mode:
-            logging.info(
-                f"minio_mode | using minio endpoint for s3 url conversion: {url}"
-            )
-            bucket = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "").split("/")[0]
-            key = url.replace(os.environ.get("MINIO_S3_ENDPOINT"), "")
-        else:
-            bucket = url.replace("https://", "").split(".s3.amazonaws.com")[0]
-            key = url.replace(f"https://{bucket}.s3.amazonaws.com/", "")
+        bucket = url.replace("https://", "").split(".s3.amazonaws.com")[0]
+        key = url.replace(f"https://{bucket}.s3.amazonaws.com/", "")
 
         return f"s3://{bucket}/{key}"
 
@@ -214,32 +187,16 @@ def verify_safe_prefix(s3_key: str):
         )
 
 
-def init_s3_resources(minio_mode: bool = False):
-    if minio_mode:
-        session = boto3.Session(
-            aws_access_key_id=os.environ.get("MINIO_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
-        )
+def init_s3_resources():
+    # Instantitate S3 resources
+    session = boto3.Session(
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+    )
 
-        s3_client = session.client(
-            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
-        )
-
-        s3_resource = session.resource(
-            "s3", endpoint_url=os.environ.get("MINIO_S3_ENDPOINT")
-        )
-
-        return session, s3_client, s3_resource
-    else:
-        # Instantitate S3 resources
-        session = boto3.Session(
-            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        )
-
-        s3_client = session.client("s3")
-        s3_resource = session.resource("s3")
-        return session, s3_client, s3_resource
+    s3_client = session.client("s3")
+    s3_resource = session.resource("s3")
+    return session, s3_client, s3_resource
 
 
 def list_keys(s3_client, bucket, prefix, suffix=""):

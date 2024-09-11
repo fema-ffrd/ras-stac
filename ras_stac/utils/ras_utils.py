@@ -11,8 +11,6 @@ from datetime import datetime
 from rashdf import RasPlanHdf, RasGeomHdf
 from rashdf.utils import parse_duration
 
-logging.getLogger("boto3").setLevel(logging.WARNING)
-logging.getLogger("botocore").setLevel(logging.WARNING)
 
 load_dotenv(find_dotenv())
 
@@ -432,8 +430,7 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         extension.
     3. Removes the leading dot from the `ras_extension`.
     4. Depending on the `ras_extension`, it sets the roles and the description for the asset. The `ras_extension` is
-      expected to match one of the following patterns: "g[0-9]{2}", "p[0-9]{2}", "u[0-9]{2}", "s[0-9]{2}", "prj",
-      "dss", "log". If it doesn't match any of these patterns, it adds "ras-file" to the roles.
+      expected to match one of the HEC-RAS file types. If it doesn't match any of these patterns, it adds "ras-file" to the roles.
     5. Returns a dictionary with the roles, the description, and the title of the asset.
     """
     file_extension = Path(s3_key).suffix
@@ -450,39 +447,149 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     ras_extension = ras_extension.lstrip(".")
 
     if re.match("g[0-9]{2}", ras_extension):
-        roles.append("ras-geometry")
+        roles.extend(["geometry-file", "ras-file"])
         if file_extension != ".hdf":
-            roles.append(pystac.MediaType.TEXT)
-            description = """The geometry file contains the 2D flow area perimeter and other geometry information."""
+            roles.extend([ pystac.MediaType.TEXT])
+            description = """The geometry file which contains cross-sectional, hydraulic structures, and modeling approach data."""
 
     elif re.match("p[0-9]{2}", ras_extension):
-        roles.append("ras-plan")
+        roles.extend(["plan-file", "ras-file"])
         if file_extension != ".hdf":
-            roles.append(pystac.MediaType.TEXT)
-            description = """The plan file contains the simulation plan and other simulation information."""
+            roles.extend([pystac.MediaType.TEXT])
+            description = """The plan file which contains a list of associated input files and all simulation options."""
+    elif re.match("f[0-9]{2}", ras_extension):
+        roles.extend(["steady-flow-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Steady Flow file which contains profile information, flow data, and boundary conditions."""
+
+    elif re.match("q[0-9]{2}", ras_extension):
+        roles.extend(["quasi-unsteady-flow-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Quasi-Unsteady Flow file."""
 
     elif re.match("u[0-9]{2}", ras_extension):
-        roles.extend(["ras-unsteady", pystac.MediaType.TEXT])
-        description = """The unsteady file contains the unsteady flow results and other simulation information."""
+        roles.extend(["unsteady-file", "ras-file", pystac.MediaType.TEXT])
+        description = """The unsteady file contains hydrographs amd initial conditions, as well as any flow options."""
 
-    elif re.match("s[0-9]{2}", ras_extension):
-        roles.extend(["ras-steady", pystac.MediaType.TEXT])
-        description = """The steady file contains the steady flow results and other simulation information."""
+    # elif re.match("O[0-9]{2}", ras_extension):
+    #     roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
+    #     description = (
+    #         """Output file for ras which contains all of the computed results."""
+    #     )
+
+    elif re.match("r[0-9]{2}", ras_extension):
+        roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Run file for ras which contains all the necessary input data required for the RAS computational engine."""
+
+    elif re.match("hyd[0-9]{2}", ras_extension):
+        roles.extend(
+            ["computational-level-output-file", "ras-file", pystac.MediaType.TEXT]
+        )
+        description = """Detailed Computational Level output file."""
+
+    elif re.match("c[0-9]{2}", ras_extension):
+        roles.extend(
+            ["geometric-preprocessor-output-file", "ras-file", pystac.MediaType.TEXT]
+        )
+        description = """Geomatric Pre-Processor output file. Contains the hydraulic properties tables, rating curves, and family of rating curves for each cross-section, bridge, culvert, storage area, inline and lateral structure."""
+
+    elif re.match("b[0-9]{2}", ras_extension):
+        roles.extend(["boundary-condition-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Boundary Condition file."""
+
+    elif re.match("bco[0-9]{2}", ras_extension):
+        roles.extend(["unsteady-flow-log-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Unsteady Flow Log output file."""
+
+    elif re.match("S[0-9]{2}", ras_extension):
+        roles.extend(["sediment-data-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Sediment data file which contains flow data, boundary conditions, and sediment data."""
+
+    elif re.match("H[0-9]{2}", ras_extension):
+        roles.extend(["hydraulic-design-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Hydraulic Design data file."""
+
+    elif re.match("W[0-9]{2}", ras_extension):
+        roles.extend(["water-quality-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Water Quality data file which contains temperature boundary conditions, initial conditions, advection dispersion parameters and meteorological data."""
+
+    elif re.match("SedCap[0-9]{2}", ras_extension):
+        roles.extend(
+            ["sediment-transport-capacity-file", "ras-file", pystac.MediaType.TEXT]
+        )
+        description = """Sediment Transport Capacity data."""
+
+    elif re.match("SedXS[0-9]{2}", ras_extension):
+        roles.extend(["xs-output-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Cross section output file."""
+
+    elif re.match("SedHeadXS[0-9]{2}", ras_extension):
+        roles.extend(["xs-output-header-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Header file for the cross section output."""
+
+    elif re.match("wqrst[0-9]{2}", ras_extension):
+        roles.extend(["water-quality-restart-file", "ras-file", pystac.MediaType.TEXT])
+        description = """The water quality restart file."""
+
+    elif ras_extension == "sed":
+        roles.extend(["sediment-output-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Detailed sediment output file."""
+
+    elif ras_extension == "blf":
+        roles.extend(["binary-log-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Binary Log file."""
 
     elif ras_extension == "prj":
-        roles.extend(["ras-project", pystac.MediaType.TEXT])
-        description = """The project file contains the project information and other simulation information."""
+        roles.extend(["project-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Project file for ras. Contains current plan files, units, and project description."""
 
     elif ras_extension == "dss":
-        roles.extend(["ras-dss"])
+        roles.extend(["ras-dss", "ras-file"])
         description = """The dss file contains the dss results and other simulation information."""
 
     elif ras_extension == "log":
-        roles.extend(["ras-log", pystac.MediaType.TEXT])
+        roles.extend(["ras-log", "ras-file", pystac.MediaType.TEXT])
         description = """The log file contains the log information and other simulation information."""
+
+    elif ras_extension == "png":
+        roles.extend(["thumbnail", pystac.MediaType.PNG])
+        description = """PNG of geometry with OpenStreetMap basemap."""
+        title = "Thumbnail"
+
+    elif ras_extension == "gpkg":
+        roles.extend(["ras-geometry-gpkg", pystac.MediaType.GEOPACKAGE])
+        description = """GeoPackage file with geometry data extracted from .gxx file."""
+        title = "GeoPackage_file"
+
+    elif ras_extension == "txt":
+        roles.extend(["computational-message-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Computational Message text file which contains the computational messages that pop up in the computation window."""
+        title = "Computational_message_file"
+
+    elif ras_extension == "rst":
+        roles.extend(["restart-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Restart file."""
+        title = "Restart_file"
+
+    elif ras_extension == "SiamInput":
+        roles.extend(["siam-input-file", "ras-file", pystac.MediaType.TEXT])
+        description = """SIAM Input Data file."""
+
+    elif ras_extension == "SiamOutput":
+        roles.extend(["siam-output-file", "ras-file", pystac.MediaType.TEXT])
+        description = """SIAM Output Data file."""
+
+    elif ras_extension == "bco[0-9]{2}":
+        roles.extend(["water-quality-log", "ras-file", pystac.MediaType.TEXT])
+        description = """Water quality log file."""
+        title = "Water_quality_log_file"
+
+    elif ras_extension == "color_scales":
+        roles.extend(["color-scales", "ras-file", pystac.MediaType.TEXT])
+        description = """File that contains the water quality color scale."""
 
     else:
         roles.extend(["ras-file"])
+
+    # TODO: Add initial conditions file
 
     return {"roles": roles, "description": description, "title": title}
 
