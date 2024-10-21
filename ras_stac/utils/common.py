@@ -105,7 +105,6 @@ PLAN_HDF_IGNORE_PROPERTIES = [
     "meteorology:raster_left",
     "meteorology:raster_rows",
     "meteorology:raster_top",
-    "results_summary:run_time_window",
     "results_summary:computation_time_total_minutes",
     "unsteady_results:short_id",
     "volume_accounting:total_boundary_flux_of_water_in",
