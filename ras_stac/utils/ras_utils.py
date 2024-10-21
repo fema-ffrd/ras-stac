@@ -2,7 +2,6 @@ import logging
 from dotenv import load_dotenv, find_dotenv
 import pystac
 import json
-from typing import List
 import shapely
 from pathlib import Path
 import re
@@ -10,7 +9,11 @@ from datetime import datetime
 
 from rashdf import RasPlanHdf, RasGeomHdf
 from rashdf.utils import parse_duration
-
+from .s3_utils import (
+    s3_path_public_url_converter,
+    split_s3_path,
+    get_basic_object_metadata,
+)
 
 load_dotenv(find_dotenv())
 
@@ -21,7 +24,7 @@ class RasStacGeom:
 
     def get_stac_geom_attrs(self) -> dict:
         """
-        This function retrieves the geometry attributes of a HEC-RAS HDF file, converting them to STAC format.
+        Retrieves the geometry attributes of a HEC-RAS HDF file, converting them to STAC format.
 
         Returns:
             stac_geom_attrs (dict): A dictionary with the organized geometry attributes.
@@ -75,16 +78,15 @@ class RasStacGeom:
 
     def to_item(
         self,
-        props_to_remove: List,
-        ras_model_name: str,
+        item_properties: dict,
+        stac_item_id: str,
         simplify: float = None,
-        stac_item_id: str = None,
     ) -> pystac.Item:
         """
         Creates a STAC (SpatioTemporal Asset Catalog) item from a given RasGeomHdf object.
 
         Parameters:
-        props_to_remove (List): List of properties to be removed from the item.
+        item_properties (dict): A dictionary containing the properties for the STAC item. Should include geometry time or runtime window for STAC item date.
         ras_model_name (str): The name of the RAS model.
         simplify (float, optional): Tolerance for simplifying the perimeter polygon. Defaults to None.
 
@@ -92,50 +94,52 @@ class RasStacGeom:
         pystac.Item: The created STAC item.
 
         Raises:
-        AttributeError: If the properties cannot be extracted from the RasGeomHdf object.
+        AttributeError: Raised if neither 'geometry_time' nor 'runtime_window' is present in the provided item properties.
 
         The function performs the following steps:
-        1. Gets the perimeter of the 2D flow area from the RasGeomHdf object.
-        2. Extracts the attributes of the geometry from the RasGeomHdf object.
-        3. Extracts the geometry time from the properties.
-        4. Removes unwanted properties specified in `props_to_remove`.
-        5. Creates a new STAC item with the model ID, the geometry converted to GeoJSON, the bounding box of the perimeter, and the properties.
-        6. Returns the created STAC item.
+        1. Retrieves the perimeter polygon of the 2D flow area from the RasGeomHdf object.
+        2. Extracts the runtime window or geometry time from the `item_properties` dictionary.
+        3. If a runtime window is present, it sets the start and end datetime for the STAC item using the values from the runtime window.
+        4. If no runtime window is available, it uses the geometry time as the datetime for the STAC item.
+        5. Converts the perimeter geometry to GeoJSON format and adds it to the STAC item.
+        6. Returns the created STAC item with the geometry, bounding box, temporal properties, and additional item properties.
         """
 
         perimeter_polygon = self.get_perimeter(simplify)
 
-        properties = self.get_stac_geom_attrs()
-        if not properties:
-            raise AttributeError(
-                f"Could not find properties while creating model item for {ras_model_name}."
+        runtime_window = item_properties.get("results_summary:run_time_window")
+
+        if runtime_window:
+            start_datetime = runtime_window[0]
+            end_datetime = runtime_window[1]
+            iso_properties = properties_to_isoformat(item_properties)
+            item = pystac.Item(
+                id=stac_item_id,
+                geometry=json.loads(shapely.to_geojson(perimeter_polygon)),
+                bbox=perimeter_polygon.bounds,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+                datetime=start_datetime,
+                properties=iso_properties,
             )
+            return item
 
-        geometry_time = properties.get("geometry:geometry_time")
-        if not geometry_time:
-            raise AttributeError(
-                f"Could not find data for 'geometry:geometry_time' while creating model item for {ras_model_name}."
+        geometry_time = item_properties.get("geometry:geometry_time")
+        if geometry_time:
+            iso_properties = properties_to_isoformat(item_properties)
+            item = pystac.Item(
+                id=stac_item_id,
+                geometry=json.loads(shapely.to_geojson(perimeter_polygon)),
+                bbox=perimeter_polygon.bounds,
+                datetime=geometry_time,
+                properties=iso_properties,
             )
+            return item
 
-        for prop in props_to_remove:
-            try:
-                del properties[prop]
-            except KeyError:
-                logging.warning(f"Failed removing {prop}, property not found")
-
-        iso_properties = properties_to_isoformat(properties)
-
-        if not stac_item_id:
-            stac_item_id = ras_model_name
-
-        item = pystac.Item(
-            id=stac_item_id,
-            geometry=json.loads(shapely.to_geojson(perimeter_polygon)),
-            bbox=perimeter_polygon.bounds,
-            datetime=geometry_time,
-            properties=iso_properties,
-        )
-        return item
+        if runtime_window is None and geometry_time is None:
+            raise AttributeError(
+                "At least one of 'geometry_time' or 'runtime_window' must be in the provided item properties."
+            )
 
 
 class RasStacPlan(RasStacGeom):
@@ -143,63 +147,7 @@ class RasStacPlan(RasStacGeom):
         super().__init__(rp)
         self.rp = rp
 
-    def to_item(
-        self,
-        ras_item: pystac.Item,
-        results_meta: dict,
-        model_sim_id: str,
-        item_props_to_remove: List,
-    ) -> pystac.Item:
-        """
-        This function creates a PySTAC Item for a model simulation.
-
-        Parameters:
-            ras_item (pystac.Item): The PySTAC Item of the RAS model.
-            results_meta (dict): The metadata of the simulation results.
-            model_sim_id (str): The ID of the model simulation.
-            item_props_to_remove (List): List of properties to be removed from the item.
-
-        Returns:
-            pystac.Item: A PySTAC Item for the model simulation.
-
-        The function performs the following steps:
-        1. Retrieves the runtime window from the `results_meta` dictionary.
-        2. Removes unwanted properties.
-        3. Creates a PySTAC Item with the ID being the `model_sim_id`, the geometry and the bounding box being those of
-        the `ras_item`, the start and end datetimes being the converted start and end times of the runtime window,
-        the datetime being the start datetime, and the properties being the `results_meta` with unwanted properties removed.
-        4. Returns the created PySTAC Item.
-        """
-        runtime_window = results_meta.get("results_summary:run_time_window")
-        if not runtime_window:
-            raise AttributeError(
-                f"Could not find data for 'results_summary:run_time_window' while creating model item for model id:{model_sim_id}."
-            )
-        start_datetime = runtime_window[0]
-        end_datetime = runtime_window[1]
-
-        for prop in item_props_to_remove:
-            try:
-                del results_meta[prop]
-            except KeyError:
-                logging.warning(
-                    f"Failed to remove property:{prop} not found in simulation results metadata."
-                )
-
-        properties = properties_to_isoformat(results_meta)
-
-        item = pystac.Item(
-            id=model_sim_id,
-            geometry=ras_item.geometry,
-            bbox=ras_item.bbox,
-            start_datetime=start_datetime,
-            end_datetime=end_datetime,
-            datetime=start_datetime,
-            properties=properties,
-        )
-        return item
-
-    def get_stac_plan_attrs(self, include_results: bool = False) -> dict:
+    def get_plan_attrs(self, include_results: bool = False) -> dict:
         """
         This function retrieves the attributes of a plan from a HEC-RAS plan HDF file, converting them to STAC format.
 
@@ -244,10 +192,10 @@ class RasStacPlan(RasStacGeom):
             logging.warning("No meteorology precipitation attributes found.")
 
         if include_results:
-            stac_plan_attrs.update(self.rp.get_stac_plan_results_attrs())
+            stac_plan_attrs.update(self.rp.get_plan_results_attrs())
         return stac_plan_attrs
 
-    def get_stac_plan_results_attrs(self):
+    def get_plan_results_attrs(self):
         """
         This function retrieves the results attributes of a plan from a HEC-RAS plan HDF file, converting
         them to STAC format. For summary atrributes, it retrieves the total computation time, the run time window,
@@ -306,7 +254,7 @@ class RasStacPlan(RasStacGeom):
 
         return results_attrs
 
-    def get_simulation_metadata(self, simulation: str) -> dict:
+    def get_stac_plan_attrs(self, simulation: str) -> dict:
         """
         This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
 
@@ -325,13 +273,13 @@ class RasStacPlan(RasStacGeom):
         metadata = {"ras:simulation": simulation}
 
         try:
-            plan_attrs = self.get_stac_plan_attrs()
+            plan_attrs = self.get_plan_attrs()
             metadata.update(plan_attrs)
         except Exception as e:
             return logging.error(f"unable to extract plan_attrs from plan: {e}")
 
         try:
-            results_attrs = self.get_stac_plan_results_attrs()
+            results_attrs = self.get_plan_results_attrs()
             metadata.update(results_attrs)
         except Exception as e:
             return logging.error(f"unable to extract results_attrs from plan: {e}")
@@ -372,8 +320,8 @@ def ras_geom_asset_info(s3_key: str, asset_type: str) -> dict:
     This function generates information about a geometric asset used in a HEC-RAS model.
 
     Parameters:
-        asset_type (str): The type of the asset. Must be one of: "mannings", "lulc", "topo", "other".
         s3_key (str): The S3 key of the asset.
+        asset_type (str): The type of the asset. Must be one of: "mannings", "lulc", "topo", "other".
 
     Returns:
         dict: A dictionary with the roles, the description, and the title of the asset.
@@ -413,9 +361,9 @@ def ras_geom_asset_info(s3_key: str, asset_type: str) -> dict:
     return {"roles": roles, "description": description, "title": title}
 
 
-def ras_plan_asset_info(s3_key: str) -> dict:
+def get_ras_asset_info(s3_key: str) -> dict:
     """
-    This function generates information about a plan asset used in a HEC-RAS model.
+    This function generates information about a HEC-RAS model asset including roles, descriptions, and titles.
 
     Parameters:
         s3_key (str): The S3 key of the asset.
@@ -424,17 +372,17 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         dict: A dictionary with the roles, the description, and the title of the asset.
 
     The function performs the following steps:
-    1. Extracts the file extension and the file name from the provided `s3_key`.
-    2. If the file extension is ".hdf", it sets the `ras_extension` to the extension of the file name without the
-      ".hdf" suffix and adds `pystac.MediaType.HDF5` to the roles. Otherwise, it sets the `ras_extension` to the file
-        extension.
-    3. Removes the leading dot from the `ras_extension`.
-    4. Depending on the `ras_extension`, it sets the roles and the description for the asset. The `ras_extension` is
-      expected to match one of the HEC-RAS file types. If it doesn't match any of these patterns, it adds "ras-file" to the roles.
+    1. Extracts the file extension and the file name from the provided s3_key.
+    2. If the file extension is '.hdf', it adjusts the ras_extension to the file names extension without '.hdf'
+       and adds pystac.MediaType.HDF5 to the roles. Otherwise, it sets the ras_extension based on the file extension.
+    3. Strips the leading dot (.) from ras_extension.
+    4. Based on the value of ras_extension, the function determines the asset's type, assigns appropriate roles,
+       and provides a descriptive message for the asset. If the file doesn't match a known pattern, the generic role
+       "ras-file" is assigned.
     5. Returns a dictionary with the roles, the description, and the title of the asset.
     """
     file_extension = Path(s3_key).suffix
-    full_extension = s3_key.rsplit('/')[-1].split('.',1)[1]
+    full_extension = s3_key.rsplit("/")[-1].split(".", 1)[1]
     title = Path(s3_key).name
     description = ""
     roles = []
@@ -451,7 +399,7 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         roles.extend(["geometry-file", "ras-file"])
         description = """The geometry file which contains cross-sectional, hydraulic structures, and modeling approach data."""
         if file_extension != ".hdf":
-            roles.extend([ pystac.MediaType.TEXT])
+            roles.extend([pystac.MediaType.TEXT])
 
     elif re.match("p[0-9]{2}", ras_extension):
         roles.extend(["plan-file", "ras-file"])
@@ -587,20 +535,22 @@ def ras_plan_asset_info(s3_key: str) -> dict:
 
     elif re.match("x[0-9]{2}", ras_extension):
         roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
-        description = ("""Run file for Unsteady Flow.""")
+        description = """Run file for Unsteady Flow."""
 
     elif re.match("O[0-9]{2}", full_extension):
         roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
-        description = ("""Output file for ras which contains all of the computed results.""")
+        description = (
+            """Output file for ras which contains all of the computed results."""
+        )
 
     elif re.match("IC.O[0-9]{2}", full_extension):
         roles.extend(["initial-conditions-file", "ras-file", pystac.MediaType.TEXT])
-        description = ("""Initial conditions file for unsteady flow plan.""")
+        description = """Initial conditions file for unsteady flow plan."""
 
     elif re.match("p[0-9]{2}.rst", full_extension):
         roles.extend(["restart-file", "ras-file", pystac.MediaType.TEXT])
-        description = ("""Restart file.""")
-        
+        description = """Restart file."""
+
     elif full_extension == "rasmap":
         roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
         description = """Ras Mapper file."""
@@ -679,9 +629,9 @@ def ras_perimeter(rg: RasGeomHdf, simplify: float = None, crs: str = "EPSG:4326"
     perimeter = rg.mesh_areas()
     perimeter = perimeter.to_crs(crs)
     if simplify:
-        perimeter_polygon = perimeter.geometry.unary_union.simplify(tolerance=simplify)
+        perimeter_polygon = perimeter.geometry.union_all().simplify(tolerance=simplify)
     else:
-        perimeter_polygon = perimeter.geometry.unary_union
+        perimeter_polygon = perimeter.geometry.union_all()
     return perimeter_polygon
 
 
@@ -702,3 +652,36 @@ def properties_to_isoformat(properties: dict):
         elif isinstance(v, datetime):
             properties[k] = v.isoformat()
     return properties
+
+
+def add_assets_to_item(item, asset_list: list, s3_resource: None):
+    """
+    Adds assets to a STAC item using the asset list and fetches metadata from S3.
+    """
+
+    for asset_file in asset_list:
+        bucket, asset_key = split_s3_path(asset_file)
+        logging.info(f"Adding asset {asset_file} to item")
+
+        if s3_resource is not None:
+            assets_bucket = s3_resource.Bucket(bucket)
+            obj = assets_bucket.Object(asset_key)
+            try:
+                metadata = get_basic_object_metadata(obj)
+            except Exception as e:
+                logging.error(f"unable to fetch metadata for {obj}: {e}")
+                metadata = {}
+        else:
+            logging.warning(
+                f"No S3 resource provided, unable to fetch metadata for asset file: {asset_file}"
+            )
+            metadata = {}
+
+        asset_info = get_ras_asset_info(asset_file)
+        asset = pystac.Asset(
+            s3_path_public_url_converter(asset_file),
+            extra_fields=metadata,
+            roles=asset_info["roles"],
+            description=asset_info["description"],
+        )
+        item.add_asset(asset_info["title"], asset)
