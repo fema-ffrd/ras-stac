@@ -9,13 +9,11 @@ from typing import List
 
 from rashdf import RasPlanHdf
 from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
-from .utils.ras_utils import ras_plan_asset_info, RasStacPlan
+from .utils.ras_utils import RasStacPlan, add_assets_to_item
 from .utils.s3_utils import (
     verify_safe_prefix,
     s3_path_public_url_converter,
-    split_s3_path,
     init_s3_resources,
-    get_basic_object_metadata,
     copy_item_to_s3,
     read_plan_hdf_from_s3,
 )
@@ -23,47 +21,36 @@ from .utils.s3_utils import (
 
 def new_plan_item(
     plan_hdf_obj: RasPlanHdf,
-    geom_item: pystac.Item,
     sim_id: str,
     asset_list: list = None,
-    item_props: dict = {},
     item_props_to_remove: List = None,
+    item_props_to_add: dict = {},
     s3_resource=None,
 ):
     ras_stac_plan = RasStacPlan(plan_hdf_obj)
-    plan_meta = ras_stac_plan.get_simulation_metadata(sim_id)
-    if plan_meta:
-        try:
-            logging.info("creating plan item")
-            if item_props_to_remove:
-                plan_item = ras_stac_plan.to_item(geom_item, plan_meta, sim_id, item_props_to_remove)
-            else:
-                plan_item = ras_stac_plan.to_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
-        except TypeError:
-            return logging.error(
-                f"unable to retrieve model results with geom data from the given geometry item and metadata \
-                    from ras stac plan. please verify plan was executed and results exist"
-            )
-    else:
-        raise AttributeError(f"No simulation metadata retrieved from given ras stac plan")
+    stac_properties = ras_stac_plan.get_stac_plan_attrs(sim_id)
 
-    plan_item.add_derived_from(geom_item)
-    plan_item.properties.update(item_props)
+    if not stac_properties:
+        raise AttributeError(
+            f"Could not find properties while creating model item for {sim_id}."
+        )
+
+    if item_props_to_remove:
+        all_props_to_remove = PLAN_HDF_IGNORE_PROPERTIES + item_props_to_remove
+    else:
+        all_props_to_remove = PLAN_HDF_IGNORE_PROPERTIES
+
+    for prop in all_props_to_remove:
+        try:
+            del stac_properties[prop]
+        except KeyError:
+            logging.warning(f"Failed removing {prop}, property not found")
+    plan_item = ras_stac_plan.to_item(stac_properties, sim_id)
+
+    plan_item.properties.update(item_props_to_add)
 
     if asset_list:
-        for asset_file in asset_list:
-            bucket, asset_key = split_s3_path(asset_file)
-            asset_bucket = s3_resource.Bucket(bucket)
-            obj = asset_bucket.Object(asset_key)
-            metadata = get_basic_object_metadata(obj)
-            asset_info = ras_plan_asset_info(asset_file)
-            asset = pystac.Asset(
-                s3_path_public_url_converter(asset_file),
-                extra_fields=metadata,
-                roles=asset_info["roles"],
-                description=asset_info["description"],
-            )
-            plan_item.add_asset(asset_info["title"], asset)
+        add_assets_to_item(plan_item, asset_list, s3_resource)
 
     return plan_item
 

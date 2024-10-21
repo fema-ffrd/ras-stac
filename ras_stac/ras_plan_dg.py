@@ -9,7 +9,7 @@ from papipyplug import parse_input, plugin_logger, print_results
 
 from .utils.common import check_params
 from .utils.dg_utils import create_depth_grid_item
-from .utils.ras_utils import ras_plan_asset_info
+from .utils.ras_utils import get_ras_asset_info
 from .utils.s3_utils import (
     verify_safe_prefix,
     s3_path_public_url_converter,
@@ -57,7 +57,7 @@ def new_plan_dg_item(
         _, asset_key = split_s3_path(asset_file)
         obj = bucket.Object(asset_key)
         metadata = get_basic_object_metadata(obj)
-        asset_info = ras_plan_asset_info(asset_file)
+        asset_info = get_ras_asset_info(asset_file)
         asset = pystac.Asset(
             s3_path_public_url_converter(asset_file),
             extra_fields=metadata,

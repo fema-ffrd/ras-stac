@@ -1,7 +1,6 @@
 from .utils.logger import setup_logging
 import logging
 import numpy as np
-import pystac
 import sys
 
 from dotenv import load_dotenv, find_dotenv
@@ -10,13 +9,14 @@ from typing import List
 
 from rashdf import RasGeomHdf
 from .utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
-from .utils.ras_utils import RasStacGeom, new_geom_assets, ras_geom_asset_info, ras_plan_asset_info
+from .utils.ras_utils import (
+    RasStacGeom,
+    new_geom_assets,
+    add_assets_to_item,
+)
 from .utils.s3_utils import (
     verify_safe_prefix,
-    s3_path_public_url_converter,
-    split_s3_path,
     init_s3_resources,
-    get_basic_object_metadata,
     copy_item_to_s3,
     read_geom_hdf_from_s3,
 )
@@ -34,12 +34,25 @@ def new_geom_item(
     s3_resource=None,
 ):
     ras_stac_geom = RasStacGeom(ras_geom_hdf)
+    stac_properties = ras_stac_geom.get_stac_geom_attrs()
+
+    if not stac_properties:
+        raise AttributeError(
+            f"Could not find properties while creating model item for {ras_model_name}."
+        )
 
     if item_props_to_remove:
         all_props_to_remove = GEOM_HDF_IGNORE_PROPERTIES + item_props_to_remove
-        item = ras_stac_geom.to_item(all_props_to_remove, ras_model_name)
     else:
-        item = ras_stac_geom.to_item(GEOM_HDF_IGNORE_PROPERTIES, ras_model_name)
+        all_props_to_remove = GEOM_HDF_IGNORE_PROPERTIES
+
+    for prop in all_props_to_remove:
+        try:
+            del stac_properties[prop]
+        except KeyError:
+            logging.warning(f"Failed removing {prop}, property not found")
+
+    item = ras_stac_geom.to_item(stac_properties, ras_model_name)
 
     if item_props_to_add:
         item.properties.update(item_props_to_add)
@@ -55,39 +68,27 @@ def new_geom_item(
         if asset_list is None:
             logging.warning(f"No assets for type: {asset_type}.")
             continue
-        logging.debug(asset_type)
-        for asset_file in asset_list:
-            bucket, asset_key = split_s3_path(asset_file)
-            logging.info(f"Adding asset {asset_file} to item")
-            assets_bucket = s3_resource.Bucket(bucket)
-            obj = assets_bucket.Object(asset_key)
-            try:
-                metadata = get_basic_object_metadata(obj)
-            except Exception as e:
-                logging.error(f"unable to fetch metadata for {obj}:{e}")
-                metadata = {}
-            asset_info = ras_plan_asset_info(asset_file)
-            asset = pystac.Asset(
-                s3_path_public_url_converter(asset_file),
-                extra_fields=metadata,
-                roles=asset_info["roles"],
-                description=asset_info["description"],
-            )
-            item.add_asset(asset_info["title"], asset)
+        else:
+            add_assets_to_item(item, asset_list, s3_resource)
 
     # Transform cell size properties to square root of area
     for prop in [
         "2d_flow_areas:cell_average_size",
         "2d_flow_areas:cell_maximum_size",
         "2d_flow_areas:cell_minimum_size",
-    ]:
+    ]:  # Capitalize 2d
+        capitalized_prop = prop.replace("2d", "2D")
         try:
-            item.properties[prop] = int(np.sqrt(float(item.properties[prop])))
+            item.properties[capitalized_prop] = int(
+                np.sqrt(float(item.properties[prop]))
+            )
+            # Remove the old lowercase property
+            del item.properties[prop]
         except KeyError:
             logging.warning(f"property {prop} not found")
     # Make projection seperate from general metadata
-    if 'projection' in item.properties:
-        item.properties['proj:wkt2'] = item.properties.pop('projection')
+    if "projection" in item.properties:
+        item.properties["proj:wkt2"] = item.properties.pop("projection")
 
     return item
 
