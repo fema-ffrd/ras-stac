@@ -1,6 +1,4 @@
 import json
-import logging
-import os
 import pystac
 import rasterio
 import rasterio.warp
