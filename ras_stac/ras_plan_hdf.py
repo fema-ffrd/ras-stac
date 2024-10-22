@@ -12,7 +12,6 @@ from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
 from .utils.ras_utils import RasStacPlan, add_assets_to_item
 from .utils.s3_utils import (
     verify_safe_prefix,
-    s3_path_public_url_converter,
     init_s3_resources,
     copy_item_to_s3,
     read_plan_hdf_from_s3,
@@ -21,18 +20,18 @@ from .utils.s3_utils import (
 
 def new_plan_item(
     plan_hdf_obj: RasPlanHdf,
-    sim_id: str,
+    item_id: str,
     asset_list: list = None,
     item_props_to_remove: List = None,
     item_props_to_add: dict = {},
     s3_resource=None,
 ):
     ras_stac_plan = RasStacPlan(plan_hdf_obj)
-    stac_properties = ras_stac_plan.get_stac_plan_attrs(sim_id)
+    stac_properties = ras_stac_plan.get_stac_plan_attrs(item_id)
 
     if not stac_properties:
         raise AttributeError(
-            f"Could not find properties while creating model item for {sim_id}."
+            f"Could not find properties while creating model item for {item_id}."
         )
 
     if item_props_to_remove:
@@ -45,7 +44,7 @@ def new_plan_item(
             del stac_properties[prop]
         except KeyError:
             logging.warning(f"Failed removing {prop}, property not found")
-    plan_item = ras_stac_plan.to_item(stac_properties, sim_id)
+    plan_item = ras_stac_plan.to_item(stac_properties, item_id)
 
     plan_item.properties.update(item_props_to_add)
 
@@ -55,42 +54,57 @@ def new_plan_item(
     return plan_item
 
 
-def main(params: dict):
-    #  Required parameters
-    plan_hdf = params.get("plan_hdf", None)
-    sim_id = params.get("sim_id", None)
-    plan_item_s3_path = params.get("new_plan_item_s3_path", None)
-    geom_item_s3_path = params.get("geom_item_s3_path", None)
+def main(
+    ras_plan_hdf: str,
+    plan_item_s3_path: str,
+    item_id: str = None,
+    asset_list: list = None,
+    item_props_to_add: dict = None,
+    item_props_to_remove: list = None,
+):
+    """
+    Main function with individual parameters instead of using a dict.
+    """
+    # Handle optional parameters
+    asset_list = asset_list or []
+    item_props_to_add = item_props_to_add or {}
+    item_props_to_remove = item_props_to_remove or []
 
-    # Optional parameters
-    asset_list = params.get("asset_list", [])
-    plan_item_props = params.get("item_props", {})
-    item_props_to_remove = params.get("item_props_to_remove", [])
-
+    # Verify the S3 path
     verify_safe_prefix(plan_item_s3_path)
-    geom_item_public_url = s3_path_public_url_converter(geom_item_s3_path)
 
-    # Prep parameters
-    asset_list.append(plan_hdf)
+    # Add the ras_plan HDF to the asset list
+    asset_list.append(ras_plan_hdf)
 
-    # Instantitate S3 resources
+    # Instantiate S3 resources
     _, s3_client, s3_resource = init_s3_resources()
-    plan_hdf_obj = read_plan_hdf_from_s3(plan_hdf)
 
-    # Create geometry item
-    geom_item = pystac.Item.from_file(geom_item_public_url)
+    if item_id:
+        plan_hdf_obj, _ = read_plan_hdf_from_s3(ras_plan_hdf)
+    else:
+        plan_hdf_obj, item_id = read_plan_hdf_from_s3(ras_plan_hdf)
 
     plan_item = new_plan_item(
         plan_hdf_obj,
-        geom_item,
-        sim_id,
+        item_id,
         asset_list,
-        plan_item_props,
         item_props_to_remove,
+        item_props_to_add,
         s3_resource,
     )
 
+    # Copy the plan item to S3
     copy_item_to_s3(plan_item, plan_item_s3_path, s3_client)
+
+    result = [
+        {
+            "href": plan_item_s3_path,
+            "rel": "self",
+            "title": "s3_key",
+            "type": "application/json",
+        },
+    ]
+    return result
 
 
 if __name__ == "__main__":
@@ -100,7 +114,27 @@ if __name__ == "__main__":
     if not load_dotenv(find_dotenv()):
         logging.warning("No local .env found")
 
-    PLUGIN_PARAMS = check_params(new_plan_item)
+    # Parse the input parameters
+    PLUGIN_PARAMS = check_params(main)
     input_params = parse_input(sys.argv, PLUGIN_PARAMS)
-    result = main(input_params)
+
+    # Extract required parameters
+    ras_plan_hdf = input_params.get("ras_plan_hdf", None)
+    plan_item_s3_path = input_params.get("plan_item_s3_path", None)
+
+    # Extract optional parameters
+    item_id = input_params.get("item_id", None)
+    asset_list = input_params.get("asset_list", [])
+    item_props_to_add = input_params.get("item_props_to_add", {})
+    item_props_to_remove = input_params.get("item_props_to_remove", [])
+
+    result = main(
+        ras_plan_hdf,
+        plan_item_s3_path,
+        item_id,
+        asset_list,
+        item_props_to_add,
+        item_props_to_remove,
+    )
+
     print_results(result)
