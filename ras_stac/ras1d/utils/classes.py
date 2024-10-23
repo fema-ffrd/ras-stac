@@ -115,29 +115,37 @@ class ProjectAsset(GenericAsset):
         """Get the current plan of this project"""
         return search_contents(self.file_str, "Current Plan", expect_one=True)
 
+    @property
+    def title(self):
+        """Title of the HEC-RAS project."""
+        return search_contents(self.file_str, "Proj Title")
+
 
 class PlanAsset(GenericAsset):
 
     @cache_data
     @property
-    def is_encroached(self):
+    def is_encroached(self) -> bool:
         return "Encroach Node" in self.file_str
 
     @cache_data
     @property
-    def geometry(self):
+    def geometry(self) -> str:
         """Get the geometry listed in the plan file."""
         return search_contents(self.file_str, "Geom File", expect_one=True)
+
+    @cache_data
+    @property
+    def title(self) -> str:
+        return search_contents(self.file_str, "Plan Title", expect_one=True)
 
 
 class SteadyFlowAsset(GenericAsset):
 
-    def __init__(url: str):
-        super().__init__(url)
-
-    def add_extra_fields(self):
-        super().add_extra_fields()
-        # and some more
+    @cache_data
+    @property
+    def title(self):
+        return search_contents(self.file_str, "Flow Title", expect_one=True)
 
 
 class GeometryAsset(GenericAsset):
@@ -145,6 +153,11 @@ class GeometryAsset(GenericAsset):
     def __init__(self, url: str):
         super().__init__(url)
         self.contents = self.download_asset_str().splitlines()
+        self.crs = None
+        self._concave_hull = None
+
+    def set_crs(self, crs: str) -> None:
+        self.crs = crs
 
     @property
     def title(self):
@@ -236,6 +249,19 @@ class GeometryAsset(GenericAsset):
 
     @property
     @check_crs
+    def gdfs(self):
+        """Group all geodataframes into a dictionary"""
+        gdfs = {}
+        gdfs["XS"] = self.xs_gdf
+        gdfs["River"] = self.reach_gdf
+        if self.junction_gdf:
+            gdfs["Junction"] = self.junction_gdf
+        if self.structures_gdf:
+            gdfs["Structure"] = self.structures_gdf
+        return gdfs
+
+    @property
+    @check_crs
     def n_cross_sections(self):
         """Number of cross sections in the HEC-RAS geometry file."""
         return len(self.cross_sections)
@@ -273,6 +299,81 @@ class GeometryAsset(GenericAsset):
             self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
         if self.structures:
             self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure")
+
+    @property
+    def concave_hull(self):
+        """Compute and return the concave hull (polygon) for cross sections."""
+        if self._concave_hull is not None:  # cached hull
+            return self._concave_hull
+        polygons = []
+        xs_df = self.xs_gdf  # shorthand
+        for river_reach in xs_df["river_reach"].unique():
+            xs_subset = xs_df[xs_df["river_reach"] == river_reach]
+            points = xs_subset.boundary.explode(index_parts=True).unstack()
+            points_last_xs = [Point(coord) for coord in xs_subset["geometry"].iloc[-1].coords]
+            points_first_xs = [Point(coord) for coord in xs_subset["geometry"].iloc[0].coords[::-1]]
+            polygon = Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1])
+            if isinstance(polygon, MultiPolygon):
+                polygons += list(polygon.geoms)
+            else:
+                polygons.append(polygon)
+        if junction is not None:
+            for _, j in junction.iterrows():
+                polygons.append(junction_hull(xs, j))
+        out_hull = [union_all([make_valid(p) for p in polygons])]
+        self._concave_hull = gpd.GeoDataFrame({"geometry": out_hull}, geometry="geometry", crs=self.crs)
+        return self._concave_hull
+
+    @property
+    def last_update(self):
+        """Get the latest node last updated entry for this geometry"""
+        dts = search_contents(self.file_str, "Node Last Edited Time", expect_one=False)
+        if len(dts) >= 1:
+            dts = [datetime.strptime(d, "%b/%d/%Y %H:%M:%S") for d in dts]
+            return max(dts)
+        else:
+            return None
+
+    @property
+    def ras_version(self) -> str:
+        """Version of ras (ex: '631') in geometry file"""
+        version = search_contents(self.contents, "Program Version", expect_one=False)
+        if len(version) >= 1:
+            return version[0]
+        else:
+            return None
+        return
+
+    @property
+    def units(self):
+        """Units of the HEC-RAS project."""
+        if "English Units" in self.file_str:
+            return "English"
+        else:
+            return "Metric"
+
+    def get_river_miles(self) -> float:
+        """Compute the total length of the river centerlines in miles."""
+        if "units" not in self.river_gdf.crs.to_dict().keys():
+            raise RuntimeError("No units specified. The coordinate system may be Geographic.")
+        units = self.river_gdf.crs.to_dict()["units"]
+        if units in ["ft-us", "ft", "us-ft"]:
+            conversion_factor = 1 / 5280
+        elif units in ["m", "meters"]:
+            conversion_factor = 1 / 1609
+        else:
+            raise RuntimeError(f"Expected feet or meters; got: {units}")
+        return round(self.river_gdf.length.sum() * conversion_factor, 2)
+
+    @property
+    def has_2d(self):
+        """Check if RAS geometry has any 2D areas"""
+        lines = self.file_str.splitlines()
+        for line in lines:
+            if line.startswith("Storage Area Is2D=") and int(line[len("Storage Area Is2D=") :].strip()) in (1, -1):
+                # RAS mostly uses "-1" to indicate True and "0" to indicate False. Checking for "1" also here.
+                return True
+        return False
 
 
 class XS:
