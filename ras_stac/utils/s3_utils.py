@@ -61,10 +61,12 @@ def read_plan_hdf_from_s3(ras_plan_hdf_url: str):
             f"RAS plan URL does not match pattern {pattern}: {ras_plan_hdf_url}"
         )
 
+    ras_model_name = Path(ras_plan_hdf_url.replace(".hdf", "")).stem
+
     logging.info(f"Reading hdf file from {ras_plan_hdf_url}")
     plan_hdf_obj = RasPlanHdf.open_uri(ras_plan_hdf_url)
 
-    return plan_hdf_obj
+    return plan_hdf_obj, ras_model_name
 
 
 def get_basic_object_metadata(obj: ObjectSummary) -> dict:
