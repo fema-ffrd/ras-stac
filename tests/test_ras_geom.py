@@ -9,6 +9,7 @@ from ras_stac.utils.ras_utils import (
     prep_stac_attrs,
     properties_to_isoformat,
 )
+from ras_stac.ras_geom_hdf import new_geom_item
 
 TEST_DATA = Path("./tests/data")
 TEST_JSON = TEST_DATA / "json"
@@ -16,6 +17,24 @@ TEST_RAS = TEST_DATA / "ras"
 TEST_GEOM = TEST_RAS / "Muncie.g05.hdf"
 TEST_GEOM_PERIMETER = TEST_JSON / "test_perimeter.json"
 TEST_GEOM_PROPERTIES = TEST_JSON / "test_geom_properties.json"
+TEST_GEOM_ITEM = TEST_JSON / "test_geom_item.json"
+
+
+def test_geom_item():
+
+    ras_geom_hdf = RasGeomHdf(TEST_GEOM)
+    ras_model_name = "test_model"
+    test_asset = "s3://test_bucket/test_prefix/test_model.f03"
+    item = new_geom_item(ras_geom_hdf, ras_model_name, asset_list=[test_asset])
+    item.validate()
+
+    item_json = json.dumps(item.to_dict(), indent=4)
+    with open(TEST_GEOM_ITEM, "r") as f:
+        test_item_content = json.load(f)
+
+    test_item_json = json.dumps(test_item_content, indent=4)
+
+    assert item_json == test_item_json
 
 
 def test_geom_properties():

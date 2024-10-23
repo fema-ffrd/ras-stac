@@ -1,13 +1,11 @@
 {
     "type": "Feature",
     "stac_version": "1.0.0",
-    "id": "test-1",
+    "id": "test_model",
     "properties": {
         "file_type": "HEC-RAS Results",
         "file_version": "HEC-RAS 6.5 February 2024",
-        "projection": "PROJCS[\"NAD_1983_StatePlane_Indiana_East_FIPS_1301_Feet\",GEOGCS[\"GCS_North_American_1983\",DATUM[\"D_North_American_1983\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",328083.333],PARAMETER[\"False_Northing\",820208.333],PARAMETER[\"Central_Meridian\",-85.6666666666667],PARAMETER[\"Scale_Factor\",0.999966667],PARAMETER[\"Latitude_Of_Origin\",37.5],UNIT[\"US survey foot\",0.304800609601219]]",
         "units_system": "US Customary",
-        "geometry:complete_geometry": true,
         "geometry:extents": [
             401571.15,
             414302.31,
@@ -25,12 +23,7 @@
         "structures:connection_count": 0,
         "structures:inline_structure_count": 0,
         "structures:lateral_structure_count": 3,
-        "2d_flow_areas:cell_average_size": 2600.986328125,
-        "2d_flow_areas:cell_maximum_index": 2305,
-        "2d_flow_areas:cell_maximum_size": 4863.12109375,
         "2d_flow_areas:cell_minimum_area_fraction": 0.009999999776482582,
-        "2d_flow_areas:cell_minimum_size": 1297.7921142578125,
-        "2d_flow_areas:cell_volume_tolerance": 0.009999999776482582,
         "2d_flow_areas:composite_lc": 0,
         "2d_flow_areas:connection_profile_hash": [
             227,
@@ -66,57 +59,12 @@
             184,
             85
         ],
-        "2d_flow_areas:data_date": "2024-04-17T10:18:18",
-        "2d_flow_areas:extents": [
-            404980.15,
-            412236.63,
-            1801018.71,
-            1805022.84
-        ],
-        "2d_flow_areas:face_area_conveyance_ratio": 0.019999999552965164,
-        "2d_flow_areas:face_area_elevation_tolerance": 0.009999999776482582,
-        "2d_flow_areas:face_profile_tolerance": 0.009999999776482582,
-        "2d_flow_areas:infiltration_override_table_hash": [
-            227,
-            176,
-            196,
-            66,
-            152,
-            252,
-            28,
-            20,
-            154,
-            251,
-            244,
-            200,
-            153,
-            111,
-            185,
-            36,
-            39,
-            174,
-            65,
-            228,
-            100,
-            155,
-            147,
-            76,
-            164,
-            149,
-            153,
-            27,
-            120,
-            82,
-            184,
-            85
-        ],
         "2d_flow_areas:laminar_depth": 0.20000000298023224,
-        "2d_flow_areas:mannings_n": 0.05999999865889549,
         "2d_flow_areas:multiple_face_mann_n": 0,
-        "2d_flow_areas:property_tables_last_computed": "2024-04-17T10:18:30",
-        "2d_flow_areas:terrain_file_date": "2014-05-23T13:58:50",
-        "2d_flow_areas:terrain_filename": ".\\Terrain\\Terrain.hdf",
-        "2d_flow_areas:version": "1.0",
+        "2D_flow_areas:cell_average_size": 50,
+        "2D_flow_areas:cell_maximum_size": 69,
+        "2D_flow_areas:cell_minimum_size": 36,
+        "proj:wkt2": "PROJCS[\"NAD_1983_StatePlane_Indiana_East_FIPS_1301_Feet\",GEOGCS[\"GCS_North_American_1983\",DATUM[\"D_North_American_1983\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",328083.333],PARAMETER[\"False_Northing\",820208.333],PARAMETER[\"Central_Meridian\",-85.6666666666667],PARAMETER[\"Scale_Factor\",0.999966667],PARAMETER[\"Latitude_Of_Origin\",37.5],UNIT[\"US survey foot\",0.304800609601219]]",
         "datetime": "2024-04-17T10:18:18Z"
     },
     "geometry": {
@@ -933,7 +881,17 @@
         ]
     },
     "links": [],
-    "assets": {},
+    "assets": {
+        "test_model.f03": {
+            "href": "https://test_bucket.s3.amazonaws.com/test_prefix/test_model.f03",
+            "description": "Steady Flow file which contains profile information, flow data, and boundary conditions.",
+            "roles": [
+                "steady-flow-file",
+                "ras-file",
+                "text/plain"
+            ]
+        }
+    },
     "bbox": [
         -85.40151186496831,
         40.192653159190996,
