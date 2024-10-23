@@ -1,11 +1,8 @@
 {
-    "geom_hdf": "s3://pilot/ras/Greenbrier/Greenbrier.g01.hdf",
+    "ras_geom_hdf": "s3://pilot/ras/Greenbrier/Greenbrier.g01.hdf",
     "new_item_s3_path": "s3://pilot/stac/Greenbrier/Greenbrier.g01.hdf.json",
-    "lulc_assets": [
-        "s3://pilot/ras/Greenbrier/Land Classification/LandCover.hdf",
+    "asset_list": [
+        "s3://pilot/ras/Greenbrier/Projection/MMC_Projection.prj",
         "s3://pilot/ras/Greenbrier/Land Classification/LandCover.hdf"
-    ],
-    "other_assets": [
-        "s3://pilot/ras/Greenbrier/Projection/MMC_Projection.prj"
     ]
 }

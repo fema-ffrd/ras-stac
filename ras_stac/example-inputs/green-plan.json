@@ -1,9 +1,8 @@
 {
-    "plan_hdf": "s3://pilot/runs/100/Stochastic_Greenbri.p01.hdf",
-    "new_plan_item_s3_path": "s3://pilot/stac/Greenbrier/Greenbrier.p01.hdf.json",
-    "geom_item_s3_path": "s3://pilot/stac/Greenbrier/Greenbrier.g01.hdf.json",
-    "sim_id": "Greenbrier-100",
-    "item_props": {
+    "ras_plan_hdf": "s3://pilot/runs/100/Stochastic_Greenbri.p01.hdf",
+    "plan_item_s3_path": "s3://pilot/stac/Greenbrier/Greenbrier.p01.hdf.json",
+    "item_id": "Greenbrier-100",
+    "item_props_to_add": {
         "cloud_wat:version": "v0.0.1",
         "cloud_wat:phase": "ressim-testing",
         "cloud_wat:realization": "testig",
