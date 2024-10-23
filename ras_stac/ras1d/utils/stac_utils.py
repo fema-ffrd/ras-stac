@@ -3,9 +3,10 @@ from pathlib import Path
 
 import pystac
 
-from ras_stac.ras_stac1d.utils.classes import (
+from ras_stac.ras1d.utils.classes import (
     GenericAsset,
     GeometryAsset,
+    ProjectAsset,
     SteadyFlowAsset,
 )
 
@@ -17,6 +18,8 @@ def generate_asset(url: str):
         base_asset = GeometryAsset(url)
     elif "steady-flow-file" in meta["roles"]:
         base_asset = SteadyFlowAsset(url)
+    elif url.endswith(".prj"):
+        base_asset = ProjectAsset(url)
     else:
         base_asset = GenericAsset(url)
     base_asset.roles.extend(meta["roles"])
