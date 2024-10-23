@@ -57,23 +57,3 @@ class RasStacInputs:
             "item_props": item_props,
             "ras_assets": ras_assets,
         }
-
-    def dg_item(
-        self,
-        plan_dg: str,
-        new_dg_item_s3_key: str,
-        plan_item_s3_key: str,
-        dg_id: str,
-        item_props: dict,
-    ) -> dict:
-        """
-        Expects keys: "prefix/file.ext"
-        """
-
-        return {
-            "plan_dg": f"s3://{self.source_bucket_name}/{plan_dg}",
-            "new_dg_item_s3_key": f"s3://{self.stac_bucket_name}/{new_dg_item_s3_key}",
-            "plan_item_s3_key": f"s3://{self.stac_bucket_name}/{plan_item_s3_key}",
-            "dg_id": dg_id,
-            "item_props": item_props,
-        }
