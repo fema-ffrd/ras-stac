@@ -13,6 +13,7 @@ from .utils.ras_utils import (
     RasStacGeom,
     new_geom_assets,
     add_assets_to_item,
+    cell_area_to_distance,
 )
 from .utils.s3_utils import (
     verify_safe_prefix,
@@ -25,10 +26,7 @@ from .utils.s3_utils import (
 def new_geom_item(
     ras_geom_hdf: RasGeomHdf,
     item_id: str,
-    topo_assets: list = None,
-    lulc_assets: list = None,
-    mannings_assets: list = None,
-    other_assets: list = None,
+    asset_list: list = None,
     item_props_to_remove: List = None,
     item_props_to_add: dict = None,
     s3_resource=None,
@@ -52,55 +50,35 @@ def new_geom_item(
         except KeyError:
             logging.warning(f"Failed removing {prop}, property not found")
 
-    item = ras_stac_geom.to_item(stac_properties, item_id)
+    geom_item = ras_stac_geom.to_item(stac_properties, item_id)
 
     if item_props_to_add:
-        item.properties.update(item_props_to_add)
-    # Create list of assets to add to item
-    geom_assets = new_geom_assets(
-        topo_assets=topo_assets,
-        lulc_assets=lulc_assets,
-        mannings_assets=mannings_assets,
-        other_assets=other_assets,
+        geom_item.properties.update(item_props_to_add)
+
+    if asset_list:
+        add_assets_to_item(geom_item, asset_list, s3_resource)
+
+    # Transform cell size properties (take square root of area)
+    cell_area_to_distance(
+        geom_item,
+        [
+            "2d_flow_areas:cell_average_size",
+            "2d_flow_areas:cell_maximum_size",
+            "2d_flow_areas:cell_minimum_size",
+        ],
     )
-    # Add assets to item
-    for asset_type, asset_list in geom_assets.items():
-        if asset_list is None:
-            logging.warning(f"No assets for type: {asset_type}.")
-            continue
-        else:
-            add_assets_to_item(item, asset_list, s3_resource)
-
-    # Transform cell size properties to square root of area
-    for prop in [
-        "2d_flow_areas:cell_average_size",
-        "2d_flow_areas:cell_maximum_size",
-        "2d_flow_areas:cell_minimum_size",
-    ]:  # Capitalize 2d
-        capitalized_prop = prop.replace("2d", "2D")
-        try:
-            item.properties[capitalized_prop] = int(
-                np.sqrt(float(item.properties[prop]))
-            )
-            # Remove the old lowercase property
-            del item.properties[prop]
-        except KeyError:
-            logging.warning(f"property {prop} not found")
     # Make projection seperate from general metadata
-    if "projection" in item.properties:
-        item.properties["proj:wkt2"] = item.properties.pop("projection")
+    if "projection" in geom_item.properties:
+        geom_item.properties["proj:wkt2"] = geom_item.properties.pop("projection")
 
-    return item
+    return geom_item
 
 
 def main(
     ras_geom_hdf: str,
     new_item_s3_path: str,
     item_id: str = None,
-    topo_assets: list = None,
-    lulc_assets: list = None,
-    mannings_assets: list = None,
-    other_assets: list = None,
+    asset_list: list = None,
     item_props_to_remove: list = None,
     item_props_to_add: dict = None,
 ):
@@ -108,8 +86,8 @@ def main(
     verify_safe_prefix(new_item_s3_path)
     logging.info(f"Creating geom item: {new_item_s3_path}")
 
-    # Add the geom HDF file to the other_assets list
-    other_assets.append(ras_geom_hdf)
+    # Add the geom HDF file to the asset_list
+    asset_list.append(ras_geom_hdf)
 
     _, s3_client, s3_resource = init_s3_resources()
 
@@ -122,10 +100,7 @@ def main(
     geom_item = new_geom_item(
         geom_hdf_obj,
         item_id,
-        topo_assets,
-        lulc_assets,
-        mannings_assets,
-        other_assets,
+        asset_list,
         item_props_to_remove,
         item_props_to_add,
         s3_resource,
@@ -160,10 +135,7 @@ if __name__ == "__main__":
 
     # Optional parameters
     item_id = input_params.get("item_id", None)
-    topo_assets = input_params.get("topo_assets", [])
-    lulc_assets = input_params.get("lulc_assets", [])
-    mannings_assets = input_params.get("mannings_assets", [])
-    other_assets = input_params.get("other_assets", [])
+    asset_list = input_params.get("asset_list", [])
     item_props_to_remove = input_params.get("item_props_to_remove", [])
     item_props_to_add = input_params.get("item_props", {})
 
@@ -171,10 +143,7 @@ if __name__ == "__main__":
         ras_geom_hdf,
         new_item_s3_path,
         item_id,
-        topo_assets,
-        lulc_assets,
-        mannings_assets,
-        other_assets,
+        asset_list,
         item_props_to_remove,
         item_props_to_add,
     )
