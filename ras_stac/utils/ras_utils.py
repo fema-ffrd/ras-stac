@@ -5,8 +5,8 @@ import json
 import shapely
 from pathlib import Path
 import re
-from datetime import datetime
-
+from datetime import datetime, timezone
+import numpy as np
 from rashdf import RasPlanHdf, RasGeomHdf
 from rashdf.utils import parse_duration
 from .s3_utils import (
@@ -108,11 +108,12 @@ class RasStacGeom:
         perimeter_polygon = self.get_perimeter(simplify)
 
         runtime_window = item_properties.get("results_summary:run_time_window")
+        geometry_time = item_properties.get("geometry:geometry_time")
+        iso_properties = properties_to_isoformat(item_properties)
 
         if runtime_window:
             start_datetime = runtime_window[0]
             end_datetime = runtime_window[1]
-            iso_properties = properties_to_isoformat(item_properties)
             item = pystac.Item(
                 id=stac_item_id,
                 geometry=json.loads(shapely.to_geojson(perimeter_polygon)),
@@ -124,9 +125,7 @@ class RasStacGeom:
             )
             return item
 
-        geometry_time = item_properties.get("geometry:geometry_time")
-        if geometry_time:
-            iso_properties = properties_to_isoformat(item_properties)
+        elif geometry_time:
             item = pystac.Item(
                 id=stac_item_id,
                 geometry=json.loads(shapely.to_geojson(perimeter_polygon)),
@@ -136,10 +135,19 @@ class RasStacGeom:
             )
             return item
 
-        if runtime_window is None and geometry_time is None:
-            raise AttributeError(
-                "At least one of 'geometry_time' or 'runtime_window' must be in the provided item properties."
+        else:
+            logging.warning(
+                "No runtime window or geometry time found in properties for item: {stac_item_id}. Using current time as item datetime."
             )
+            datetime_utc = datetime.now(tz=timezone.utc)
+            item = pystac.Item(
+                id=stac_item_id,
+                geometry=json.loads(shapely.to_geojson(perimeter_polygon)),
+                bbox=perimeter_polygon.bounds,
+                datetime=datetime_utc,
+                properties=iso_properties,
+            )
+            return item
 
 
 class RasStacPlan(RasStacGeom):
@@ -685,3 +693,23 @@ def add_assets_to_item(item, asset_list: list, s3_resource: None):
             description=asset_info["description"],
         )
         item.add_asset(asset_info["title"], asset)
+
+
+def cell_area_to_distance(item, properties_to_transform):
+    """
+    Converts the given properties (representing area) to distance by taking the square root
+    of their values. Capitalizes '2d' to '2D' in the property names.
+
+    Parameters:
+    - item: The item thats having its properties transformed.
+    - properties_to_transform: List of properties to transform.
+    """
+    for prop in properties_to_transform:
+        capitalized_prop = prop.replace("2d", "2D")
+        try:
+            item.properties[capitalized_prop] = int(
+                np.sqrt(float(item.properties[prop]))
+            )
+            del item.properties[prop]
+        except KeyError:
+            logging.warning(f"Property {prop} not found")
