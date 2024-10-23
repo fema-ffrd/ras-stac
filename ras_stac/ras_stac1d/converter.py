@@ -9,12 +9,14 @@ from pystac.item import Item
 from ras_stac.ras_stac1d.utils.classes import GenericAsset
 from ras_stac.ras_stac1d.utils.common import file_location
 from ras_stac.ras_stac1d.utils.s3_utils import s3listdir
+from ras_stac.ras_stac1d.utils.stac_utils import generate_asset
 
 
 class Converter:
 
-    def __init__(self):
-        pass
+    def __init__(self, asset_paths: list, crs: str) -> None:
+        self.assets = [generate_asset(i) for i in asset_paths]
+        self.crs = crs
 
     def stac_to_s3(self, output_path: str) -> dict:
         """Export the converted STAC item."""
@@ -24,13 +26,6 @@ class Converter:
     def thumb_to_s3(self, thumb_path: str) -> None:
         """Generate STAC thumbnail, save to S3, and log path."""
         pass
-
-    def import_model(self, model_dir: str, crs: str) -> None:
-        """Load HEC-RAS model files to class."""
-        if file_location(model_dir) == "local":
-            self.assets = [GenericAsset(i) for i in os.listdir(model_dir)]
-        else:
-            self.assets = [GenericAsset(i) for i in s3listdir(model_dir)]
 
     @property
     def stac_item(self) -> dict:
@@ -63,9 +58,18 @@ class Converter:
         return potentials[0]
 
 
+def from_directory(model_dir: str, crs: str) -> Converter:
+    """Scrape assets from directory and return Converter object."""
+    if file_location(model_dir) == "local":
+        assets = os.listdir(model_dir)
+    else:
+        assets = s3listdir(model_dir)
+    return Converter(assets, crs)
+
+
 def ras_to_stac(ras_dir: str, crs: str):
     """Convert a HEC-RAS model to a STAC item and save to same directory."""
-    converter = Converter().import_model(ras_dir, crs)
+    converter = from_directory(ras_dir, crs)
     converter.export_thumbnail(Path(ras_dir) / "thumbnail.png")
     return converter.export_stac("debugging.json")
 

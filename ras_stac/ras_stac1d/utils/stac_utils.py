@@ -3,13 +3,21 @@ from pathlib import Path
 
 import pystac
 
-from ras_stac.ras_stac1d.utils.classes import GenericAsset
+from ras_stac.ras_stac1d.utils.classes import (
+    GenericAsset,
+    GeometryAsset,
+    SteadyFlowAsset,
+)
 
 
-def generate_asset_class(url: str):
-    """Create a GenericAsset class with info from file."""
+def generate_asset(url: str):
+    """Create an asset class with info from file (factory pattern)."""
     meta = ras_asset_info(url)
-    if "xyz" in meta["roles"]:  # Assign subclass, if necessary
+    if "geometry-file" in meta["roles"]:  # Assign subclass, if necessary
+        base_asset = GeometryAsset(url)
+    elif "steady-flow-file" in meta["roles"]:
+        base_asset = SteadyFlowAsset(url)
+    else:
         base_asset = GenericAsset(url)
     base_asset.roles.extend(meta["roles"])
     base_asset.description = meta["description"]
