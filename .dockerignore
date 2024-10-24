@@ -1,6 +1,12 @@
+# Boilerplate
+**/*.env
+**/venv/
+**/.git*
+**/__pycache__
+**/.vscode/
+**/*.log
 
 # Environments
-.env
 .venv
 env/
 venv/
