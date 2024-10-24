@@ -171,7 +171,7 @@ class Converter:
 def from_directory(model_dir: str, crs: str) -> Converter:
     """Scrape assets from directory and return Converter object."""
     if file_location(model_dir) == "local":
-        assets = os.listdir(model_dir)
+        assets = [os.path.join(model_dir, f) for f in os.listdir(model_dir)]
     else:
         assets = s3listdir(model_dir)
     return Converter(assets, crs)
@@ -186,4 +186,5 @@ def ras_to_stac(ras_dir: str, crs: str):
 
 if __name__ == "__main__":
     ras_dir = sys.argv[1]
-    ras_to_stac(ras_dir)
+    crs = sys.argv[2]
+    ras_to_stac(ras_dir, crs)

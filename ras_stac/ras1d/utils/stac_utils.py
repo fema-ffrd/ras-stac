@@ -24,7 +24,7 @@ def generate_asset(url: str):
         base_asset = GenericAsset(url)
     base_asset.roles.extend(meta["roles"])
     base_asset.description = meta["description"]
-    base_asset.name = meta["name"]
+    base_asset.name = meta["title"]
 
 
 def ras_asset_info(url: str) -> dict:

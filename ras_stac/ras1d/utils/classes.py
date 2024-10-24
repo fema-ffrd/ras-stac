@@ -52,7 +52,7 @@ class GenericAsset:
         self.file_str = None
         self.roles = []
         self.description = None
-        self.title = None
+        self.name = None
         self.extra_fields = {}
         self.loc = file_location(url)
 
