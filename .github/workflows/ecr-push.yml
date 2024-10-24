@@ -32,13 +32,14 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
         with:
-          registries: ${{ secrets.AWS_ACCOUNT_NUMBER }}
+          registries: "public.ecr.aws"
+
 
       - name: Build, tag, and push API docker image to Amazon ECR
         id: build-publish
         shell: bash
         env:
-          ECR_REGISTRY: "dewberry"
+          ECR_REGISTRY:  "public.ecr.aws/dewberry"
           ECR_REPOSITORY: ${{ secrets.ECR_REPO_NAME }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
