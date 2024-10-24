@@ -6,6 +6,7 @@ from typing import List
 
 import geopandas as gpd
 import pandas as pd
+import pystac
 from pyproj import CRS
 from shapely import make_valid, union_all
 from shapely.geometry import (
@@ -60,7 +61,6 @@ class GenericAsset:
         self.roles = []
         self.description = None
         self.name = None
-        self.extra_fields = {}
         self.loc = file_location(url)
 
     def __str__(self):
@@ -104,9 +104,29 @@ class GenericAsset:
         else:
             return get_basic_object_metadata(self.url)
 
-    def add_extra_fields(self):
-        for k, v in self.basic_metadata:
-            self.extra_fields[k] = v
+    @property
+    def _extra_fields(self):
+        return {}
+
+    @property
+    def extra_fields(self):
+        fields = {}
+        for k, v in self.basic_metadata.items():
+            fields[k] = v
+        for k, v in self._extra_fields.items():
+            fields[k] = v
+        return fields
+
+    def to_stac(self):
+        """Generate STAC asset from class info"""
+        asset = pystac.Asset(
+            href=self.url,
+            title=self.name,
+            extra_fields=self.extra_fields,
+            roles=self.roles,
+            description=self.description,
+        )
+        return asset
 
 
 class ProjectAsset(GenericAsset):
@@ -156,6 +176,22 @@ class SteadyFlowAsset(GenericAsset):
     def title(self):
         return search_contents(self.file_str.splitlines(), "Flow Title", expect_one=True)
 
+    @property
+    def n_profiles(self):
+        return len(self.profile_names)
+
+    @property
+    @cache_data
+    def profile_names(self):
+        return search_contents(self.file_str.splitlines(), "Profile Names").split(",")
+
+    @property
+    def _extra_fields(self):
+        ex = {}
+        ex["number_of_profiles"] = self.n_profiles
+        ex["number_of_profiles"] = self.profile_names
+        return ex
+
 
 class GeometryAsset(GenericAsset):
 
@@ -168,6 +204,15 @@ class GeometryAsset(GenericAsset):
 
     def set_crs(self, crs: str) -> None:
         self.crs = crs
+
+    @property
+    def _extra_fields(self):
+        ex = {}
+        ex["number_of_rivers"] = self.n_rivers
+        ex["number_of_reaches"] = self.n_reaches
+        ex["number_of_cross_sections"] = self.n_cross_sections
+        ex["number_of_junctions"] = self.n_junctions
+        return ex
 
     @property
     def title(self):
@@ -331,10 +376,54 @@ class GeometryAsset(GenericAsset):
                 polygons.append(polygon)
         if self.junction_gdf is not None:
             for _, j in self.junction_gdf.iterrows():
-                polygons.append(junction_hull(xs, j))
+                polygons.append(self.junction_hull(j))
         out_hull = [union_all([make_valid(p) for p in polygons])]
         self._concave_hull = gpd.GeoDataFrame({"geometry": out_hull}, geometry="geometry", crs=self.crs)
         return self._concave_hull
+
+    def junction_hull(self, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
+        """Compute and return the concave hull (polygon) for a juction."""
+        junction_xs = self.determine_junction_xs(self.xs_gdf, junction)
+
+        print(type(junction_xs))
+        junction_xs["start"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[0], axis=1)
+        junction_xs["end"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[1], axis=1)
+        junction_xs["to_line"] = junction_xs.apply(lambda row: self.determine_xs_order(row, junction_xs), axis=1)
+
+        coords = []
+        first_to_line = junction_xs["to_line"].iloc[0]
+        to_line = first_to_line
+        while True:
+            xs = junction_xs[junction_xs["river_reach_rs"] == to_line]
+            coords += list(xs.iloc[0].geometry.coords)
+            to_line = xs["to_line"].iloc[0]
+            if to_line == first_to_line:
+                break
+        return Polygon(coords)
+
+    def determine_junction_xs(self, xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
+        """Determine the cross sections that bound a junction."""
+        junction_xs = []
+        for us_river, us_reach in zip(junction.us_rivers.split(","), junction.us_reaches.split(",")):
+            xs_us_river_reach = xs[(xs["river"] == us_river) & (xs["reach"] == us_reach)]
+            junction_xs.append(
+                xs_us_river_reach[xs_us_river_reach["river_station"] == xs_us_river_reach["river_station"].min()]
+            )
+        for ds_river, ds_reach in zip(junction.ds_rivers.split(","), junction.ds_reaches.split(",")):
+            xs_ds_river_reach = xs[(xs["river"] == ds_river) & (xs["reach"] == ds_reach)]
+            xs_ds_river_reach["geometry"] = xs_ds_river_reach.reverse()
+            junction_xs.append(
+                xs_ds_river_reach[xs_ds_river_reach["river_station"] == xs_ds_river_reach["river_station"].max()]
+            )
+        return pd.concat(junction_xs)
+
+    def determine_xs_order(self, row: gpd.GeoSeries, junction_xs: gpd.gpd.GeoDataFrame):
+        """Detemine what order cross sections bounding a junction should be in to produce a valid polygon."""
+        candidate_lines = junction_xs[junction_xs["river_reach_rs"] != row["river_reach_rs"]]
+        candidate_lines["distance"] = candidate_lines["start"].distance(row.end)
+        return candidate_lines.loc[
+            candidate_lines["distance"] == candidate_lines["distance"].min(), "river_reach_rs"
+        ].iloc[0]
 
     @property
     def last_update(self):
@@ -376,7 +465,7 @@ class GeometryAsset(GenericAsset):
             conversion_factor = 1 / 1609
         else:
             raise RuntimeError(f"Expected feet or meters; got: {units}")
-        return round(self.river_gdf.length.sum() * conversion_factor, 2)
+        return round(self.reach_gdf.length.sum() * conversion_factor, 2)
 
     @property
     def has_2d(self):

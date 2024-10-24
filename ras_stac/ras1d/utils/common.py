@@ -73,6 +73,7 @@ def get_huc8(x: float, y: float) -> str:
         )
         try:
             huc8 = resp.json()["features"][0]["attributes"]["huc8"]
+            break
         except Exception:
             tries += 1
     return huc8

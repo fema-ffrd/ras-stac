@@ -25,11 +25,19 @@ def generate_asset(url: str):
         base_asset = PlanAsset(url)
     elif url.endswith(".prj"):
         base_asset = ProjectAsset(url)
+        if base_asset.is_ras_prj:
+            meta["roles"].extend(["project-file", "ras-file", pystac.MediaType.TEXT])
+            meta["description"] = (
+                """Project file for ras. Contains current plan files, units, and project description."""
+            )
+        else:
+            meta["roles"].extend(["projection-file", "ras-file", pystac.MediaType.TEXT])
+            meta["description"] = """Projection file."""
     else:
         base_asset = GenericAsset(url)
     base_asset.roles.extend(meta["roles"])
     base_asset.description = meta["description"]
-    base_asset.name = meta["title"]
+    base_asset.name = meta["title"].replace(" ", "_")
     return base_asset
 
 

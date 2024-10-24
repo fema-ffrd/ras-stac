@@ -39,7 +39,7 @@ class Converter:
 
     def export_stac(self, output_path: str) -> None:
         """Export the converted STAC item."""
-        out_obj = json.dumps(self.stac_item).encode()
+        out_obj = json.dumps(self.stac_item.to_dict()).encode()
         if file_location(output_path) == "local":
             with open(output_path, "wb") as f:
                 f.write(out_obj)
@@ -79,7 +79,7 @@ class Converter:
             wkt2=og_crs.to_wkt(),
             geometry=self.get_footprint(),
             bbox=self.get_bbox(),
-            centroid=self.get_centroid(),
+            centroid=to_geojson(self.get_centroid()),
         )
         return stac
 
@@ -105,7 +105,7 @@ class Converter:
 
     def get_centroid(self, crs: str = None):
         """Return centroid for XS concave hull of the primary geometry"""
-        centroid = self.primary_geometry.concave_hull
+        centroid = self.primary_geometry.concave_hull.centroid
         if crs:
             centroid = centroid.to_crs(crs)
         return centroid.iloc[0]
@@ -144,7 +144,7 @@ class Converter:
 
     @property
     def stac_assets(self):
-        return [a.to_stac() for a in self.assets]
+        return {a.name: a.to_stac() for a in self.assets}
 
     @property
     def extension_dict(self):
