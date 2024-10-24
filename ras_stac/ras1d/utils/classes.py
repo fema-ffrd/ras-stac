@@ -1,12 +1,19 @@
-import datetime
 import math
 import os
+from datetime import datetime
 from functools import wraps
 from typing import List
 
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import LineString, Point
+from pyproj import CRS
+from shapely import make_valid, union_all
+from shapely.geometry import (
+    LineString,
+    MultiPolygon,
+    Point,
+    Polygon,
+)
 
 from ras_stac.ras1d.utils.common import file_location
 from ras_stac.ras1d.utils.ras_utils import (
@@ -76,11 +83,12 @@ class GenericAsset:
         else:
             return False
 
-    @cache_data
     @property
     def is_ras_prj(self) -> bool:
         if not self.endswith(".prj"):
             return False
+        if self.file_str is None:
+            self.download_asset_str()
         if "Proj Title" in self.file_str.split("\n")[0]:
             return True
         else:
@@ -103,56 +111,58 @@ class GenericAsset:
 
 class ProjectAsset(GenericAsset):
 
-    @cache_data
     @property
+    @cache_data
     def plans(self):
         """Get the plans associated with this project."""
-        return search_contents(self.file_str, "Plan File", expect_one=False)
+        return search_contents(self.file_str.splitlines(), "Plan File", expect_one=False)
 
-    @cache_data
     @property
+    @cache_data
     def current_plan(self):
         """Get the current plan of this project"""
-        return search_contents(self.file_str, "Current Plan", expect_one=True)
+        return search_contents(self.file_str.splitlines(), "Current Plan", expect_one=True)
 
     @property
+    @cache_data
     def title(self):
         """Title of the HEC-RAS project."""
-        return search_contents(self.file_str, "Proj Title")
+        return search_contents(self.file_str.splitlines(), "Proj Title")
 
 
 class PlanAsset(GenericAsset):
 
-    @cache_data
     @property
+    @cache_data
     def is_encroached(self) -> bool:
         return "Encroach Node" in self.file_str
 
-    @cache_data
     @property
+    @cache_data
     def geometry(self) -> str:
         """Get the geometry listed in the plan file."""
-        return search_contents(self.file_str, "Geom File", expect_one=True)
+        return search_contents(self.file_str.splitlines(), "Geom File", expect_one=True)
 
-    @cache_data
     @property
+    @cache_data
     def title(self) -> str:
-        return search_contents(self.file_str, "Plan Title", expect_one=True)
+        return search_contents(self.file_str.splitlines(), "Plan Title", expect_one=True)
 
 
 class SteadyFlowAsset(GenericAsset):
 
-    @cache_data
     @property
+    @cache_data
     def title(self):
-        return search_contents(self.file_str, "Flow Title", expect_one=True)
+        return search_contents(self.file_str.splitlines(), "Flow Title", expect_one=True)
 
 
 class GeometryAsset(GenericAsset):
 
     def __init__(self, url: str):
         super().__init__(url)
-        self.contents = self.download_asset_str().splitlines()
+        self.download_asset_str()
+        self.contents = self.file_str.splitlines()
         self.crs = None
         self._concave_hull = None
 
@@ -252,11 +262,13 @@ class GeometryAsset(GenericAsset):
     def gdfs(self):
         """Group all geodataframes into a dictionary"""
         gdfs = {}
-        gdfs["XS"] = self.xs_gdf
-        gdfs["River"] = self.reach_gdf
-        if self.junction_gdf:
+        if self.cross_sections:
+            gdfs["XS"] = self.xs_gdf
+        if self.reaches:
+            gdfs["River"] = self.reach_gdf
+        if self.junctions:
             gdfs["Junction"] = self.junction_gdf
-        if self.structures_gdf:
+        if self.structures:
             gdfs["Structure"] = self.structures_gdf
         return gdfs
 
@@ -317,8 +329,8 @@ class GeometryAsset(GenericAsset):
                 polygons += list(polygon.geoms)
             else:
                 polygons.append(polygon)
-        if junction is not None:
-            for _, j in junction.iterrows():
+        if self.junction_gdf is not None:
+            for _, j in self.junction_gdf.iterrows():
                 polygons.append(junction_hull(xs, j))
         out_hull = [union_all([make_valid(p) for p in polygons])]
         self._concave_hull = gpd.GeoDataFrame({"geometry": out_hull}, geometry="geometry", crs=self.crs)
@@ -327,7 +339,7 @@ class GeometryAsset(GenericAsset):
     @property
     def last_update(self):
         """Get the latest node last updated entry for this geometry"""
-        dts = search_contents(self.file_str, "Node Last Edited Time", expect_one=False)
+        dts = search_contents(self.file_str.splitlines(), "Node Last Edited Time", expect_one=False)
         if len(dts) >= 1:
             dts = [datetime.strptime(d, "%b/%d/%Y %H:%M:%S") for d in dts]
             return max(dts)
@@ -354,12 +366,13 @@ class GeometryAsset(GenericAsset):
 
     def get_river_miles(self) -> float:
         """Compute the total length of the river centerlines in miles."""
-        if "units" not in self.river_gdf.crs.to_dict().keys():
-            raise RuntimeError("No units specified. The coordinate system may be Geographic.")
-        units = self.river_gdf.crs.to_dict()["units"]
-        if units in ["ft-us", "ft", "us-ft"]:
+        try:
+            units = CRS(self.crs).axis_info[0].unit_name
+        except Exception as e:
+            raise RuntimeError(f"No units specified in {self.crs}. The coordinate system may be Geographic.")
+        if units.lower() in ["us survey foot", "foot"]:
             conversion_factor = 1 / 5280
-        elif units in ["m", "meters"]:
+        elif units.lower() in ["m", "meter", "metre"]:
             conversion_factor = 1 / 1609
         else:
             raise RuntimeError(f"Expected feet or meters; got: {units}")

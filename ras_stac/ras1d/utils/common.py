@@ -5,14 +5,23 @@ import matplotlib.pyplot as plt
 import requests
 
 
-def file_location(fpath: str) -> str:
+def file_location(fpath: str, exists: bool = True) -> str:
     """Check if file is local or on s3."""
-    if os.path.exists(fpath):
+    if os.path.exists(os.path.dirname(fpath)):
         return "local"
     elif fpath.startswith("s3://"):
         return "s3"
     else:
         raise ValueError(f"Path {fpath} is neither on local machine nor an S3 URL")
+
+
+def gather_dir_local(in_path: str) -> list:
+    """Walk a directory and get all file paths"""
+    out_list = []
+    for root, subFolder, files in os.walk(in_path):
+        for item in files:
+            out_list.append(str(os.path.join(root, item)))
+    return out_list
 
 
 def make_thumbnail(gdfs: dict):
@@ -30,10 +39,8 @@ def make_thumbnail(gdfs: dict):
         "TwoDAreas": "purple",
         "XS": "green",
     }
-    dpi = 300
-    thumb_dim = 200  # Took this from the radiant earth browser
     crs = gdfs["River"].crs
-    fig, ax = plt.subplots(1, 1, figsize=(thumb_dim / dpi, thumb_dim / dpi))
+    fig, ax = plt.subplots(1, 1, figsize=(6, 6))
 
     # Add data
     for layer in gdfs.keys():

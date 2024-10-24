@@ -6,6 +6,7 @@ import pystac
 from ras_stac.ras1d.utils.classes import (
     GenericAsset,
     GeometryAsset,
+    PlanAsset,
     ProjectAsset,
     SteadyFlowAsset,
 )
@@ -14,10 +15,14 @@ from ras_stac.ras1d.utils.classes import (
 def generate_asset(url: str):
     """Create an asset class with info from file (factory pattern)."""
     meta = ras_asset_info(url)
-    if "geometry-file" in meta["roles"]:  # Assign subclass, if necessary
+    if pystac.MediaType.HDF5 in meta["roles"]:
+        base_asset = GenericAsset(url)
+    elif "geometry-file" in meta["roles"]:  # Assign subclass, if necessary
         base_asset = GeometryAsset(url)
     elif "steady-flow-file" in meta["roles"]:
         base_asset = SteadyFlowAsset(url)
+    elif "plan-file" in meta["roles"]:
+        base_asset = PlanAsset(url)
     elif url.endswith(".prj"):
         base_asset = ProjectAsset(url)
     else:
@@ -25,6 +30,7 @@ def generate_asset(url: str):
     base_asset.roles.extend(meta["roles"])
     base_asset.description = meta["description"]
     base_asset.name = meta["title"]
+    return base_asset
 
 
 def ras_asset_info(url: str) -> dict:

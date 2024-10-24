@@ -1,7 +1,7 @@
 from ras_stac.utils.s3_utils import init_s3_resources, list_keys, split_s3_key
 
 
-def s3listdir(s3_prefix_url: str) -> list:
+def gather_dir_s3(s3_prefix_url: str) -> list:
     """Get list of files with same prefix."""
     _, s3_client, _ = init_s3_resources()
     bucket, key = split_s3_key(s3_prefix_url)

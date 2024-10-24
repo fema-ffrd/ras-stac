@@ -19,8 +19,13 @@ from ras_stac.ras1d.utils.classes import (
     ProjectAsset,
     SteadyFlowAsset,
 )
-from ras_stac.ras1d.utils.common import file_location, get_huc8, make_thumbnail
-from ras_stac.ras1d.utils.s3_utils import s3listdir, save_bytes_s3
+from ras_stac.ras1d.utils.common import (
+    file_location,
+    gather_dir_local,
+    get_huc8,
+    make_thumbnail,
+)
+from ras_stac.ras1d.utils.s3_utils import gather_dir_s3, save_bytes_s3
 from ras_stac.ras1d.utils.stac_utils import generate_asset
 
 
@@ -32,16 +37,21 @@ class Converter:
         [a.set_crs(crs) for a in self.assets if isinstance(a, GeometryAsset)]
         self.thumb_path = None
 
-    def stac_to_s3(self, output_path: str) -> dict:
+    def export_stac(self, output_path: str) -> None:
         """Export the converted STAC item."""
-        return Item
+        out_obj = json.dumps(self.stac_item).encode()
+        if file_location(output_path) == "local":
+            with open(output_path, "wb") as f:
+                f.write(out_obj)
+        else:
+            save_bytes_s3(out_obj, output_path)
 
-    def save_thumbnail(self, thumb_path: str) -> None:
+    def export_thumbnail(self, thumb_path: str) -> None:
         """Generate STAC thumbnail, save to S3, and log path."""
-        gdfs = self.primary_geometry.gdf
+        gdfs = self.primary_geometry.gdfs
         thumb = make_thumbnail(gdfs)
         if file_location(thumb_path) == "local":
-            thumb.savefig(thumb_path, dpi=300)
+            thumb.savefig(thumb_path, dpi=80)
         else:
             img_data = io.BytesIO()
             thumb.savefig(img_data, format="png")
@@ -171,17 +181,17 @@ class Converter:
 def from_directory(model_dir: str, crs: str) -> Converter:
     """Scrape assets from directory and return Converter object."""
     if file_location(model_dir) == "local":
-        assets = [os.path.join(model_dir, f) for f in os.listdir(model_dir)]
+        assets = gather_dir_local(model_dir)
     else:
-        assets = s3listdir(model_dir)
+        assets = gather_dir_s3(model_dir)
     return Converter(assets, crs)
 
 
 def ras_to_stac(ras_dir: str, crs: str):
     """Convert a HEC-RAS model to a STAC item and save to same directory."""
     converter = from_directory(ras_dir, crs)
-    converter.export_thumbnail(Path(ras_dir) / "thumbnail.png")
-    return converter.export_stac("debugging.json")
+    converter.export_thumbnail(str(Path(ras_dir) / "thumbnail.png"))
+    return converter.export_stac(str(Path(ras_dir) / "debugging.json"))
 
 
 if __name__ == "__main__":
