@@ -28,11 +28,13 @@ jobs:
           role-session-name: updateimage
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR Public
+      - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-public-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: "public.ecr.aws/dewberry"
 
-      - name: Build, tag, and push API docker image to Amazon ECR Public
+      - name: Build, tag, and push API docker image to Amazon ECR
         id: build-publish
         shell: bash
         env:
