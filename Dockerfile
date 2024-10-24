@@ -4,7 +4,6 @@ RUN apt-get update && \
     apt-get install jq -y && \
     apt-get install -y python3-pip && \
     pip install --upgrade pip \
-    pip3 install rasterio --no-binary rasterio
 
 WORKDIR /app
 
