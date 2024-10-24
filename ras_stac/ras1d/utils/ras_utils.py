@@ -98,3 +98,15 @@ def text_block_from_start_str_length(start_str: str, number_of_lines: int, lines
                 return results
             else:
                 results.append(line)
+
+
+def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float]]:
+    """Split lines at given width to get paired data string. Split the string in half and convert to tuple of floats."""
+    pairs = []
+    for line in lines:
+        for i in range(0, len(line), width):
+            x = line[i : int(i + width / 2)]
+            y = line[int(i + width / 2) : int(i + width)]
+            pairs.append((float(x), float(y)))
+
+    return pairs
