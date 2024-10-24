@@ -38,7 +38,7 @@ jobs:
         id: build-publish
         shell: bash
         env:
-          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          ECR_REGISTRY: "dewberry"
           ECR_REPOSITORY: ${{ secrets.ECR_REPO_NAME }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
