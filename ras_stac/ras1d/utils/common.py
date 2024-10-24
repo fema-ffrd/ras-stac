@@ -1,5 +1,9 @@
 import os
 
+import contextily as ctx
+import matplotlib.pyplot as plt
+import requests
+
 
 def file_location(fpath: str) -> str:
     """Check if file is local or on s3."""
@@ -11,7 +15,7 @@ def file_location(fpath: str) -> str:
         raise ValueError(f"Path {fpath} is neither on local machine nor an S3 URL")
 
 
-def make_thumbnail(gdfs: dict) -> Figure:
+def make_thumbnail(gdfs: dict):
     # Figure definition
     cdict = {
         "Banks": "red",
