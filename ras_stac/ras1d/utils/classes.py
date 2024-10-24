@@ -2,6 +2,7 @@ import math
 import os
 from datetime import datetime
 from functools import wraps
+from pathlib import Path
 from typing import List
 
 import geopandas as gpd
@@ -24,7 +25,7 @@ from ras_stac.ras1d.utils.ras_utils import (
     text_block_from_start_str_length,
     text_block_from_start_str_to_empty_line,
 )
-from ras_stac.ras1d.utils.s3_utils import str_from_s3
+from ras_stac.ras1d.utils.s3_utils import key_metadata, str_from_s3
 from ras_stac.utils.s3_utils import get_basic_object_metadata
 
 
@@ -70,6 +71,10 @@ class GenericAsset:
     def suffix(self):
         return self.url.split(".")[-1]
 
+    @property
+    def basename(self):
+        return Path(self.url).name
+
     def download_asset_str(self) -> None:
         if self.loc == "local":
             with open(self.url) as f:
@@ -102,7 +107,7 @@ class GenericAsset:
             last_mod = last_mod.isoformat()
             return {"file:size": os.path.getsize(self.url), "last_modified": last_mod}
         else:
-            return get_basic_object_metadata(self.url)
+            return key_metadata(self.url)
 
     @property
     def _extra_fields(self):

@@ -84,7 +84,7 @@ class Converter:
     @property
     def idx(self):
         """Generate STAC item id from RAS name."""
-        return str(self.ras_prj_file).replace(".prj", "").replace(" ", "_")
+        return self.ras_prj_file.basename.replace(".prj", "").replace(" ", "_")
 
     def get_footprint(self, crs: str = None):
         """Return a geojson of the primary geometry cross-section concave hull"""
@@ -189,10 +189,21 @@ def ras_to_stac(ras_dir: str, crs: str):
     """Convert a HEC-RAS model to a STAC item and save to same directory."""
     converter = from_directory(ras_dir, crs)
     converter.export_thumbnail(str(Path(ras_dir) / "thumbnail.png"))
-    return converter.export_stac(str(Path(ras_dir) / "debugging.json"))
+    converter.export_stac(str(Path(ras_dir) / "debugging.json"))
+
+
+def process_in_place_s3(in_dir: str, crs: str, out_dir: str):
+    """Convert a HEC-RAS model to a STAC item and save to same directory."""
+    converter = from_directory(in_dir, crs)
+    thumb_path = out_dir + "thumbnail.png"
+    converter.export_thumbnail(thumb_path)
+    stac_path = out_dir + f"{converter.idx}.json"
+    converter.export_stac(stac_path)
+    return {"in_path": in_dir, "crs": crs, "thumb_path": thumb_path, "stac_path": stac_path}
 
 
 if __name__ == "__main__":
     ras_dir = sys.argv[1]
     crs = sys.argv[2]
-    ras_to_stac(ras_dir, crs)
+    process_in_place_s3(ras_dir, crs, ras_dir)
+    # ras_to_stac(ras_dir, crs)
