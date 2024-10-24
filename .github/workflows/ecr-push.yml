@@ -40,14 +40,16 @@ jobs:
         id: build-publish
         shell: bash
         env:
-          ECR_REGISTRY:  "dewberry"
-          ECR_REPOSITORY: ${{ secrets.ECR_REPO_NAME }}
+          REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          REGISTRY_ALIAS: "dewberry"
+          REPOSITORY: "ras-stac"
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build . -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+        
+          docker build . -t "$REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG"
+          docker tag "$REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          docker push "$REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:latest"
 
-          echo "IMAGE $IMAGE_TAG is pushed to $ECR_REGISTRY/$ECR_REPOSITORY"
-          echo "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG overwrote $ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          echo "IMAGE $IMAGE_TAG is pushed to $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY"
+          echo "$REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG overwrote $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:latest"
