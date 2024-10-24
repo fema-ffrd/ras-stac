@@ -2,7 +2,7 @@ name: PAPI Docker image build and publish
 on:
   push:
     branches:
-      - main
+      - dev
 
 jobs:
   build-push:
