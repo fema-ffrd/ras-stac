@@ -25,7 +25,7 @@ from ras_stac.ras1d.utils.ras_utils import (
     text_block_from_start_str_length,
     text_block_from_start_str_to_empty_line,
 )
-from ras_stac.ras1d.utils.s3_utils import key_metadata, str_from_s3
+from ras_stac.ras1d.utils.s3_utils import key_metadata, split_s3_key, str_from_s3
 from ras_stac.utils.s3_utils import get_basic_object_metadata
 
 
@@ -126,6 +126,29 @@ class GenericAsset:
         """Generate STAC asset from class info"""
         asset = pystac.Asset(
             href=self.url,
+            title=self.name,
+            extra_fields=self.extra_fields,
+            roles=self.roles,
+            description=self.description,
+        )
+        return asset
+
+
+class ThumbAsset(GenericAsset):
+
+    def __init__(self, url):
+        super().__init__(url)
+        self.name = self.basename.split(".")[0]
+        self.roles = ["thumbnail", "image/png"]
+        self.description = "PNG of geometry with OpenStreetMap basemap."
+
+    def to_stac(self):
+        """Generate STAC asset from class info"""
+        bucket, key = split_s3_key(self.url)
+        public_url = f"https://{bucket}.s3.amazonaws.com/{key}"
+
+        asset = pystac.Asset(
+            href=public_url,
             title=self.name,
             extra_fields=self.extra_fields,
             roles=self.roles,

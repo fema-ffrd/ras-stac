@@ -16,6 +16,7 @@ from ras_stac.ras1d.utils.classes import (
     GeometryAsset,
     PlanAsset,
     SteadyFlowAsset,
+    ThumbAsset,
 )
 from ras_stac.ras1d.utils.common import (
     file_location,
@@ -33,7 +34,6 @@ class Converter:
         self.assets = [generate_asset(i) for i in asset_paths]
         self.crs = crs
         [a.set_crs(crs) for a in self.assets if isinstance(a, GeometryAsset)]
-        self.thumb_path = None
 
     def export_stac(self, output_path: str) -> None:
         """Export the converted STAC item."""
@@ -55,7 +55,8 @@ class Converter:
             thumb.savefig(img_data, format="png")
             img_data.seek(0)
             save_bytes_s3(img_data, thumb_path)
-        self.thumb_path = thumb_path
+
+        self.assets.append(ThumbAsset(thumb_path))
 
     @property
     def stac_item(self) -> dict:
@@ -128,7 +129,7 @@ class Converter:
         properties = {
             "model_name": self.idx,
             "ras_version": self.primary_geometry.ras_version,
-            "ras_units": self.primary_geometry.units,
+            "ras_units": self.ras_prj_file.units,
             "project_title": self.ras_prj_file.title,
             "plans": {a.title: a.suffix for a in self.assets if isinstance(a, PlanAsset)},
             "geometries": {a.title: a.suffix for a in self.assets if isinstance(a, GeometryAsset)},
@@ -195,7 +196,7 @@ def ras_to_stac(ras_dir: str, crs: str):
 def process_in_place_s3(in_dir: str, crs: str, out_dir: str):
     """Convert a HEC-RAS model to a STAC item and save to same directory."""
     converter = from_directory(in_dir, crs)
-    thumb_path = out_dir + "thumbnail.png"
+    thumb_path = out_dir + "Thumbnail.png"
     converter.export_thumbnail(thumb_path)
     stac_path = out_dir + f"{converter.idx}.json"
     converter.export_stac(stac_path)
