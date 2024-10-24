@@ -1,4 +1,4 @@
-name: PAPI Docker image build and publish
+name: Docker image build and publish
 on:
   push:
     branches:
@@ -16,7 +16,6 @@ jobs:
 
     outputs:
       image_tag: ${{ steps.build-publish.outputs.image_tag }}
-      full_image: ${{ steps.build-publish.outputs.full_image }}
 
     steps:
       - name: Checkout repo
@@ -28,16 +27,6 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_NUMBER }}:role/${{ secrets.AWS_ROLE }}
           role-session-name: updateimage
           aws-region: ${{ secrets.AWS_REGION }}
-          
-      - name: prepare ECR repo name based on the Github repository
-        shell: bash
-        run: |
-          set -eux
-          # lowercase the name
-          repo="${GITHUB_REPOSITORY,,}"
-
-          # replace / with _
-          echo "ECR_REPO_NAME=${repo//\//_}" >> $GITHUB_ENV
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -49,8 +38,8 @@ jobs:
         id: build-publish
         shell: bash
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ env.ECR_REPO_NAME }}
+          ECR_REGISTRY: "public.ecr.aws/dewberry"
+          ECR_REPOSITORY: ${{ secrets.ECR_REPO_NAME }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build . -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
