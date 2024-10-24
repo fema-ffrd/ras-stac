@@ -457,7 +457,7 @@ class GeometryAsset(GenericAsset):
         """Compute the total length of the river centerlines in miles."""
         try:
             units = CRS(self.crs).axis_info[0].unit_name
-        except Exception as e:
+        except Exception:
             raise RuntimeError(f"No units specified in {self.crs}. The coordinate system may be Geographic.")
         if units.lower() in ["us survey foot", "foot"]:
             conversion_factor = 1 / 5280
@@ -524,7 +524,7 @@ class XS:
         """Number of coordinates in cross section."""
         try:
             return int(search_contents(self.ras_data, "XS GIS Cut Line", expect_one=True))
-        except ValueError as e:
+        except ValueError:
             return 0
             # raise NotGeoreferencedError(f"No coordinates found for cross section: {self.river_reach_rs} ")
 
@@ -568,7 +568,7 @@ class XS:
                 self.ras_data,
             )
             return data_pairs_from_text_block(lines, 16)
-        except ValueError as e:
+        except ValueError:
             return None
 
     @property
@@ -693,9 +693,6 @@ class Reach:
         self.river_reach = river_reach
         self.river = river_reach.split(",")[0].rstrip()
         self.reach = river_reach.split(",")[1].rstrip()
-
-        us_connection: str = None
-        ds_connection: str = None
 
     @property
     def us_xs(self):

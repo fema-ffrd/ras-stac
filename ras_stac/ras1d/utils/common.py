@@ -47,10 +47,10 @@ def make_thumbnail(gdfs: dict):
         gdfs[layer].plot(ax=ax, color=cdict[layer], linewidth=1, label=layer)
     try:
         ctx.add_basemap(ax, crs=crs, source=ctx.providers.USGS.USTopo)
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         try:
             ctx.add_basemap(ax, crs=crs, source=ctx.providers.Esri.WorldStreetMap)
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.HTTPError:
             ctx.add_basemap(ax, crs=crs, source=ctx.providers.OpenStreetMap.Mapnik)
 
     # Format

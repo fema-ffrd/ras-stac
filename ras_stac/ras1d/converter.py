@@ -1,7 +1,6 @@
 import datetime
 import io
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -16,7 +15,6 @@ from ras_stac.ras1d.utils.classes import (
     GenericAsset,
     GeometryAsset,
     PlanAsset,
-    ProjectAsset,
     SteadyFlowAsset,
 )
 from ras_stac.ras1d.utils.common import (
