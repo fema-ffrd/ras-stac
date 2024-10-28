@@ -193,14 +193,14 @@ def ras_to_stac(ras_dir: str, crs: str):
     converter.export_stac(str(Path(ras_dir) / "debugging.json"))
 
 
-def process_in_place_s3(in_dir: str, crs: str, out_dir: str):
+def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
     """Convert a HEC-RAS model to a STAC item and save to same directory."""
-    converter = from_directory(in_dir, crs)
-    thumb_path = out_dir + "Thumbnail.png"
+    converter = from_directory(in_prefix, crs)
+    thumb_path = out_prefix + "Thumbnail.png"
     converter.export_thumbnail(thumb_path)
-    stac_path = out_dir + f"{converter.idx}.json"
+    stac_path = out_prefix + f"{converter.idx}.json"
     converter.export_stac(stac_path)
-    return {"in_path": in_dir, "crs": crs, "thumb_path": thumb_path, "stac_path": stac_path}
+    return {"in_path": in_prefix, "crs": crs, "thumb_path": thumb_path, "stac_path": stac_path}
 
 
 if __name__ == "__main__":
