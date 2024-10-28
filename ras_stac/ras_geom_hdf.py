@@ -11,7 +11,6 @@ from rashdf import RasGeomHdf
 from .utils.common import check_params, GEOM_HDF_IGNORE_PROPERTIES
 from .utils.ras_utils import (
     RasStacGeom,
-    new_geom_assets,
     add_assets_to_item,
     cell_area_to_distance,
 )
