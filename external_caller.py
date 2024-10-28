@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 
 from papipyplug import parse_input, plugin_logger, print_results
 
-PLUGIN_PARAMS = {"required": ["in_prefix", "crs", "out_prefix"]}
+PLUGIN_PARAMS = {"required": ["in_prefix", "crs", "out_prefix"], "optional": []}
 
 if __name__ == "__main__":
     plugin_logger()
