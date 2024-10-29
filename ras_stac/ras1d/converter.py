@@ -34,6 +34,7 @@ class Converter:
         self.assets = [generate_asset(i) for i in asset_paths]
         self.crs = crs
         [a.set_crs(crs) for a in self.assets if isinstance(a, GeometryAsset)]
+        self.custom_properties = {}
 
     def export_stac(self, output_path: str) -> None:
         """Export the converted STAC item."""
@@ -129,7 +130,7 @@ class Converter:
         properties = {
             "model_name": self.idx,
             "ras_version": self.primary_geometry.ras_version,
-            "ras_units": self.ras_prj_file.units,
+            "ras_units": self.primary_geometry.units,
             "project_title": self.ras_prj_file.title,
             "plans": {a.title: a.suffix for a in self.assets if isinstance(a, PlanAsset)},
             "geometries": {a.title: a.suffix for a in self.assets if isinstance(a, GeometryAsset)},
@@ -139,6 +140,8 @@ class Converter:
             "assigned_HUC8": self.huc8,
             "has_2d": any([a.has_2d for a in self.assets if isinstance(a, GeometryAsset)]),
         }
+        for p in self.custom_properties:
+            properties[p] = self.custom_properties[p]
         return properties
 
     @property
@@ -176,6 +179,22 @@ class Converter:
         """The geometry file listed in the primary plan"""
         return self.extension_dict[self.primary_plan.geometry]
 
+    def check_for_mip(self) -> None:
+        mip_data = [a for a in self.assets if a.name == "mip_package_geolocation_metadata.json"]
+        if len(mip_data) == 0:
+            return
+        elif len(mip_data) > 1:
+            raise RuntimeError(
+                f"More than one mip_package_geolocation_metadata.json found in s3 dir: {[m.title for m in mip_data]}"
+            )
+        else:
+            mip_data = mip_data[0]
+            self.assets.remove(mip_data)
+            mip_data.download_asset_str()
+            mip_json = json.loads(mip_data.file_str)
+            self.custom_properties["fema_case_number"] = mip_json["case"]
+            self.custom_properties["fema_case_counties"] = mip_json["county"]
+
 
 def from_directory(model_dir: str, crs: str) -> Converter:
     """Scrape assets from directory and return Converter object."""
@@ -196,6 +215,7 @@ def ras_to_stac(ras_dir: str, crs: str):
 def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
     """Convert a HEC-RAS model to a STAC item and save to same directory."""
     converter = from_directory(in_prefix, crs)
+    converter.check_for_mip()
     thumb_path = out_prefix + "Thumbnail.png"
     converter.export_thumbnail(thumb_path)
     stac_path = out_prefix + f"{converter.idx}.json"
@@ -206,5 +226,6 @@ def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
 if __name__ == "__main__":
     ras_dir = sys.argv[1]
     crs = sys.argv[2]
-    process_in_place_s3(ras_dir, crs, ras_dir)
+    out_dir = sys.argv[3]
+    process_in_place_s3(ras_dir, crs, out_dir)
     # ras_to_stac(ras_dir, crs)
