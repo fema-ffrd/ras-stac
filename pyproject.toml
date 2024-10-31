@@ -30,7 +30,7 @@ repository = "https://github.com/fema-ffrd/ras-stac"
 ras_stac = "cli:main"
 
 [tool.pytest.ini_options]
-pythonpath = "src"
+pythonpath = "ras_stac"
 testpaths = "tests"
 
 [tool.ruff.lint]
