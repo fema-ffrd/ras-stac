@@ -1,8 +1,11 @@
+"""Common utility functions & constants for ras_stac."""
+
 from typing import List, Any
 import inspect
 
 
 def check_params(func):
+    """Inspect the parameters of a given function and categorize them as required or optional."""
     sig = inspect.signature(func)
     args = sig.parameters
 
@@ -17,16 +20,18 @@ def check_params(func):
 
 
 def get_dict_values(dicts: List[dict], key: Any) -> list:
-    """
-    This function retrieves the values of a specific key from a list of dictionaries.
+    """Retrieve the values of a specific key from a list of dictionaries.
 
-    Parameters:
+    Parameters
+    ----------
         dicts (List[dict]): The list of dictionaries.
         key (Any): The key to retrieve the values of.
 
-    Returns:
+    Returns
+    -------
         List[dict]: A list with the values of the key in the dictionaries. If a dictionary
         does not have the key, it is skipped.
+
     """
     results = []
     for d in dicts:

@@ -1,3 +1,5 @@
+"""Module for creating STAC items from HEC-RAS plan HDF files."""
+
 from .utils.logger import setup_logging
 import logging
 import sys
@@ -25,6 +27,7 @@ def new_plan_item(
     item_props_to_add: dict = {},
     s3_resource=None,
 ):
+    """Create a new STAC item from a HEC-RAS plan HDF object."""
     ras_stac_plan = RasStacPlan(plan_hdf_obj)
     stac_properties = ras_stac_plan.get_stac_plan_attrs(item_id)
 
@@ -61,9 +64,7 @@ def main(
     item_props_to_add: dict = None,
     item_props_to_remove: list = None,
 ):
-    """
-    Main function with individual parameters instead of using a dict.
-    """
+    """Create stac item from papipyplug input."""
     # Handle optional parameters
     asset_list = asset_list or []
     item_props_to_add = item_props_to_add or {}

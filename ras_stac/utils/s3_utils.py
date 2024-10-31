@@ -1,3 +1,5 @@
+"""S3 utility functions for HEC-RAS HDF and STAC data."""
+
 import boto3
 import botocore
 import json
@@ -15,18 +17,21 @@ load_dotenv(find_dotenv())
 
 
 def read_geom_hdf_from_s3(ras_geom_hdf_url: str):
-    """
-    Reads a RAS geometry HDF file from an S3 URL.
+    """Read a RAS geometry HDF file from an S3 URL.
 
-    Parameters:
+    Parameters
+    ----------
         ras_geom_hdf_url (str): The URL of the RAS geometry HDF file.
 
-    Returns:
+    Returns
+    -------
         geom_hdf_obj (RasGeomHdf): The RasGeomHdf object.
         ras_model_name (str): The RAS model name.
 
-    Raises:
+    Raises
+    ------
         ValueError: If the provided URL does not have a '.hdf' suffix.
+
     """
     pattern = r".*\.g[0-9]{2}\.hdf$"
     if not re.fullmatch(pattern, ras_geom_hdf_url):
@@ -43,17 +48,20 @@ def read_geom_hdf_from_s3(ras_geom_hdf_url: str):
 
 
 def read_plan_hdf_from_s3(ras_plan_hdf_url: str):
-    """
-    Reads a RAS plan HDF file from an S3 URL.
+    """Read a RAS plan HDF file from an S3 URL.
 
-    Parameters:
+    Parameters
+    ----------
         ras_plan_hdf_url (str): The URL of the RAS plan HDF file.
 
-    Returns:
+    Returns
+    -------
         plan_hdf_obj (RasPlanHdf): The RasPlanHdf object.
 
-    Raises:
+    Raises
+    ------
         ValueError: If the provided URL does not have a '.hdf' suffix.
+
     """
     pattern = r".*\.p[0-9]{2}\.hdf$"
     if not re.fullmatch(pattern, ras_plan_hdf_url):
@@ -70,15 +78,17 @@ def read_plan_hdf_from_s3(ras_plan_hdf_url: str):
 
 
 def get_basic_object_metadata(obj: ObjectSummary) -> dict:
-    """
-    This function retrieves basic metadata of an AWS S3 object.
+    """Retrieve basic metadata of an AWS S3 object.
 
-    Parameters:
+    Parameters
+    ----------
         obj (ObjectSummary): The AWS S3 object.
 
-    Returns:
+    Returns
+    -------
         dict: A dictionary with the size, ETag, last modified date, storage platform, region, and
               storage tier of the object.
+
     """
     try:
         _ = obj.load()
@@ -97,10 +107,10 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
 
 
 def copy_item_to_s3(item, s3_path, s3client):
-    """
-    This function copies an item to an AWS S3 bucket.
+    """Copy stac item to S3 bucket.
 
-    Parameters:
+    Parameters
+    ----------
         item: The item to copy. It must have a `to_dict` method that returns a dictionary representation of it.
         s3_key (str): The file path in the S3 bucket to copy the item to.
 
@@ -108,6 +118,7 @@ def copy_item_to_s3(item, s3_path, s3client):
         1. Initializes a boto3 S3 client and splits the s3_key into the bucket name and the key.
         2. Converts the item to a dictionary, serializes it to a JSON string, and encodes it to bytes.
         3. Puts the encoded JSON string to the specified file path in the S3 bucket.
+
     """
     item_public_url = s3_path_public_url_converter(s3_path)
     item.set_self_href(item_public_url)
@@ -120,13 +131,14 @@ def copy_item_to_s3(item, s3_path, s3client):
 
 
 def split_s3_path(s3_path: str) -> tuple[str, str]:
-    """
-    This function splits an S3 path into the bucket name and the key.
+    """Split an S3 path into the bucket name and the key.
 
-    Parameters:
+    Parameters
+    ----------
         s3_path (str): The S3 path to split. It should be in the format 's3://bucket/key'.
 
-    Returns:
+    Returns
+    -------
         tuple: A tuple containing the bucket name and the key. If the S3 path does not contain a key, the second element
           of the tuple will be None.
 
@@ -135,6 +147,7 @@ def split_s3_path(s3_path: str) -> tuple[str, str]:
         2. Splits the remaining string on the first '/' character.
         3. Returns the first part as the bucket name and the second part as the key. If there is no '/', the key will
           be None.
+
     """
     if not s3_path.startswith("s3://"):
         raise ValueError(f"s3_path does not start with s3://: {s3_path}")
@@ -145,13 +158,14 @@ def split_s3_path(s3_path: str) -> tuple[str, str]:
 
 
 def s3_path_public_url_converter(url: str) -> str:
-    """
-    This function converts an S3 URL to an HTTPS URL and vice versa.
+    """Convert an S3 URL to an HTTPS URL and vice versa.
 
-    Parameters:
+    Parameters
+    ----------
         url (str): The URL to convert. It should be in the format 's3://bucket/' or 'https://bucket.s3.amazonaws.com/'.
 
-    Returns:
+    Returns
+    -------
         str: The converted URL. If the input URL is an S3 URL, the function returns an HTTPS URL. If the input URL is
         an HTTPS URL, the function returns an S3 URL.
 
@@ -159,8 +173,8 @@ def s3_path_public_url_converter(url: str) -> str:
         1. Checks if the input URL is an S3 URL or an HTTPS URL.
         2. If the input URL is an S3 URL, it converts it to an HTTPS URL.
         3. If the input URL is an HTTPS URL, it converts it to an S3 URL.
-    """
 
+    """
     if url.startswith("s3"):
         bucket = url.replace("s3://", "").split("/")[0]
         key = url.replace(f"s3://{bucket}", "")[1:]
@@ -177,10 +191,7 @@ def s3_path_public_url_converter(url: str) -> str:
 
 
 def verify_safe_prefix(s3_key: str):
-    """
-    TODO: discuss this with the team. Would like some safety mechanism to ensure that the S3 key is limited to
-    certain prefixes. Should there be some restriction where these files can be written?
-    """
+    """TODO: discuss this with the team. Would like some safety mechanism to ensure that the S3 key is limited to certain prefixes."""
     parts = s3_key.split("/")
     logging.debug(f"parts of the s3_key: {parts}")
     if parts[3] != "stac":
@@ -190,7 +201,7 @@ def verify_safe_prefix(s3_key: str):
 
 
 def init_s3_resources():
-    # Instantitate S3 resources
+    """Create a Boto3 session using AWS credentials from environment variables and creates both an S3 client and S3 resource for interacting with AWS S3."""
     session = boto3.Session(
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
@@ -202,6 +213,19 @@ def init_s3_resources():
 
 
 def list_keys(s3_client, bucket, prefix, suffix=""):
+    """List all S3 keys in a specified bucket that match a given prefix and suffix.
+
+    Parameters
+    ----------
+        s3_client (boto3.Client): An S3 client object.
+        bucket (str): The name of the S3 bucket.
+        prefix (str): The prefix string to filter keys.
+        suffix (str, optional): The suffix string to filter keys. Defaults to an empty string.
+
+    Returns
+    -------
+        list: A list of keys in the S3 bucket that match the specified prefix and suffix.
+    """
     keys = []
     kwargs = {"Bucket": bucket, "Prefix": prefix}
     while True:
@@ -215,6 +239,19 @@ def list_keys(s3_client, bucket, prefix, suffix=""):
 
 
 def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):
+    """List all S3 keys in a specified bucket that match a given regex pattern and suffix.
+
+    Parameters
+    ----------
+        s3_client (boto3.Client): An S3 client object.
+        bucket (str): The name of the S3 bucket.
+        prefix_includes (str): A pattern to match the beginning of keys.
+        suffix (str, optional): The suffix string to filter keys. Defaults to an empty string.
+
+    Returns
+    -------
+        list: A list of keys in the S3 bucket that match the specified regex pattern and suffix.
+    """
     keys = []
     kwargs = {"Bucket": bucket, "Prefix": prefix_includes}
     prefix_pattern = re.compile(prefix_includes.replace("*", ".*"))

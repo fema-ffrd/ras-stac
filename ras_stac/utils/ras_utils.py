@@ -1,3 +1,5 @@
+"""Utility functions for processing STAC data."""
+
 import logging
 from dotenv import load_dotenv, find_dotenv
 import pystac
@@ -19,17 +21,19 @@ load_dotenv(find_dotenv())
 
 
 class RasStacGeom:
+    """Class for creating STAC items from HEC-RAS geometry HDF files."""
+
     def __init__(self, rg: RasGeomHdf):
         self.rg = rg
 
     def get_stac_geom_attrs(self) -> dict:
-        """
-        Retrieves the geometry attributes of a HEC-RAS HDF file, converting them to STAC format.
+        """Retrieve the geometry attributes of a HEC-RAS HDF file, converting them to STAC format.
 
-        Returns:
+        Returns
+        -------
             stac_geom_attrs (dict): A dictionary with the organized geometry attributes.
-        """
 
+        """
         stac_geom_attrs = self.rg.get_root_attrs()
         if stac_geom_attrs is not None:
             stac_geom_attrs = prep_stac_attrs(stac_geom_attrs)
@@ -74,6 +78,7 @@ class RasStacGeom:
         return stac_geom_attrs
 
     def get_perimeter(self, simplify: float = None, crs: str = "EPSG:4326"):
+        """Retrieve the perimeter of a HEC-RAS geometry."""
         return ras_perimeter(self.rg, simplify, crs)
 
     def to_item(
@@ -82,18 +87,20 @@ class RasStacGeom:
         stac_item_id: str,
         simplify: float = None,
     ) -> pystac.Item:
-        """
-        Creates a STAC (SpatioTemporal Asset Catalog) item from a given RasGeomHdf object.
+        """Create a STAC (SpatioTemporal Asset Catalog) item from a given RasGeomHdf object.
 
-        Parameters:
+        Parameters
+        ----------
         item_properties (dict): A dictionary containing the properties for the STAC item. Should include geometry time or runtime window for STAC item date.
         ras_model_name (str): The name of the RAS model.
         simplify (float, optional): Tolerance for simplifying the perimeter polygon. Defaults to None.
 
-        Returns:
+        Returns
+        -------
         pystac.Item: The created STAC item.
 
-        Raises:
+        Raises
+        ------
         AttributeError: Raised if neither 'geometry_time' nor 'runtime_window' is present in the provided item properties.
 
         The function performs the following steps:
@@ -103,8 +110,8 @@ class RasStacGeom:
         4. If no runtime window is available, it uses the geometry time as the datetime for the STAC item.
         5. Converts the perimeter geometry to GeoJSON format and adds it to the STAC item.
         6. Returns the created STAC item with the geometry, bounding box, temporal properties, and additional item properties.
-        """
 
+        """
         perimeter_polygon = self.get_perimeter(simplify)
 
         runtime_window = item_properties.get("results_summary:run_time_window")
@@ -151,20 +158,24 @@ class RasStacGeom:
 
 
 class RasStacPlan(RasStacGeom):
+    """Class for creating STAC items from HEC-RAS plan HDF files."""
+
     def __init__(self, rp: RasPlanHdf):
         super().__init__(rp)
         self.rp = rp
 
     def get_plan_attrs(self, include_results: bool = False) -> dict:
-        """
-        This function retrieves the attributes of a plan from a HEC-RAS plan HDF file, converting them to STAC format.
+        """Retrieve the attributes of a plan from a HEC-RAS plan HDF file, converting them to STAC format.
 
-        Parameters:
+        Parameters
+        ----------
             include_results (bool, optional): Whether to include the results attributes in the returned dictionary.
                 Defaults to False.
 
-        Returns:
+        Returns
+        -------
             stac_plan_attrs (dict): A dictionary with the attributes of the plan.
+
         """
         stac_plan_attrs = self.rp.get_root_attrs()
         if stac_plan_attrs is not None:
@@ -204,13 +215,12 @@ class RasStacPlan(RasStacGeom):
         return stac_plan_attrs
 
     def get_plan_results_attrs(self):
-        """
-        This function retrieves the results attributes of a plan from a HEC-RAS plan HDF file, converting
-        them to STAC format. For summary atrributes, it retrieves the total computation time, the run time window,
-        and the solution from it, and calculates the total computation time in minutes if it exists.
+        """Retrieve the results attributes of a plan from a HEC-RAS plan HDF file, converting them to STAC format.
 
-        Returns:
+        Returns
+        -------
             results_attrs (dict): A dictionary with the results attributes of the plan.
+
         """
         results_attrs = {}
 
@@ -263,13 +273,14 @@ class RasStacPlan(RasStacGeom):
         return results_attrs
 
     def get_stac_plan_attrs(self, simulation: str) -> dict:
-        """
-        This function retrieves the metadata of a simulation from a HEC-RAS plan HDF file.
+        """Retrieve the metadata of a simulation from a HEC-RAS plan HDF file.
 
-        Parameters:
+        Parameters
+        ----------
             simulation (str): The name of the simulation.
 
-        Returns:
+        Returns
+        -------
             dict: A dictionary with the metadata of the simulation.
 
         The function performs the following steps:
@@ -277,6 +288,7 @@ class RasStacPlan(RasStacGeom):
         2. Tries to get the plan attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
         3. Tries to get the plan results attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
         4. Returns the `metadata` dictionary.
+
         """
         metadata = {"ras:simulation": simulation}
 
@@ -296,13 +308,14 @@ class RasStacPlan(RasStacGeom):
 
 
 def get_ras_asset_info(s3_key: str) -> dict:
-    """
-    This function generates information about a HEC-RAS model asset including roles, descriptions, and titles.
+    """Generate information about a HEC-RAS model asset including roles, descriptions, and titles.
 
-    Parameters:
+    Parameters
+    ----------
         s3_key (str): The S3 key of the asset.
 
-    Returns:
+    Returns
+    -------
         dict: A dictionary with the roles, the description, and the title of the asset.
 
     The function performs the following steps:
@@ -314,6 +327,7 @@ def get_ras_asset_info(s3_key: str) -> dict:
        and provides a descriptive message for the asset. If the file doesn't match a known pattern, the generic role
        "ras-file" is assigned.
     5. Returns a dictionary with the roles, the description, and the title of the asset.
+
     """
     file_extension = Path(s3_key).suffix
     full_extension = s3_key.rsplit("/")[-1].split(".", 1)[1]
@@ -503,14 +517,16 @@ def get_ras_asset_info(s3_key: str) -> dict:
 
 
 def to_snake_case(text):
-    """
-    Convert a string to snake case, removing punctuation and other symbols.
+    """Convert a string to snake case, removing punctuation and other symbols.
 
-    Parameters:
+    Parameters
+    ----------
         text (str): The string to be converted.
 
-    Returns:
+    Returns
+    -------
         str: The snake case version of the string.
+
     """
     import re
 
@@ -524,16 +540,17 @@ def to_snake_case(text):
 
 
 def prep_stac_attrs(attrs: dict, prefix: str = None) -> dict:
-    """
-    Converts an unformatted HDF attributes dictionary to STAC format by converting values to snake case
-    and adding a prefix if one is given.
+    """Convert an unformatted HDF attributes dictionary to STAC format by converting values to snake case and adding a prefix if one is given.
 
-    Parameters:
+    Parameters
+    ----------
         attrs (dict): Unformatted attribute dictionary.
         prefix (str): Optional prefix to be added to each key of formatted dictionary.
 
-    Returns:
+    Returns
+    -------
         results (dict): The new attribute dictionary snake case values and prefix.
+
     """
     results = {}
     for k, value in attrs.items():
@@ -547,19 +564,20 @@ def prep_stac_attrs(attrs: dict, prefix: str = None) -> dict:
 
 
 def ras_perimeter(rg: RasGeomHdf, simplify: float = None, crs: str = "EPSG:4326"):
-    """
-    Calculate the perimeter of a HEC-RAS geometry as a GeoDataFrame in the specified coordinate reference system.
+    """Calculate the perimeter of a HEC-RAS geometry as a GeoDataFrame in the specified coordinate reference system.
 
-    Parameters:
+    Parameters
+    ----------
         rg (RasGeomHdf): A HEC-RAS geometry HDF file object which provides mesh areas.
         simplify (float, optional): A tolerance level to simplify the perimeter geometry to reduce complexity.
                                     If None, the geometry will not be simplified. Defaults to None.
         crs (str): The coordinate reference system which the perimeter geometry will be converted to. Defaults to "EPSG:4326".
 
-    Returns:
+    Returns
+    -------
         gpd.GeoDataFrame: A GeoDataFrame containing the calculated perimeter polygon in the specified CRS.
-    """
 
+    """
     perimeter = rg.mesh_areas()
     perimeter = perimeter.to_crs(crs)
     if simplify:
@@ -570,13 +588,16 @@ def ras_perimeter(rg: RasGeomHdf, simplify: float = None, crs: str = "EPSG:4326"
 
 
 def properties_to_isoformat(properties: dict):
-    """Converts datetime objects in properties to isoformat
+    """Convert datetime objects in properties to isoformat.
 
-    Parameters:
+    Parameters
+    ----------
         properties (dict): Properties dictionary with datetime object values
 
-    Returns:
+    Returns
+    -------
         properties (dict): Properties dictionary with datetime objects converted to isoformat
+
     """
     for k, v in properties.items():
         if isinstance(v, list):
@@ -589,10 +610,7 @@ def properties_to_isoformat(properties: dict):
 
 
 def add_assets_to_item(item, asset_list: list, s3_resource: None):
-    """
-    Adds assets to a STAC item using the asset list and fetches metadata from S3.
-    """
-
+    """Add assets to a STAC item using the asset list and fetches metadata from S3."""
     for asset_file in asset_list:
         bucket, asset_key = split_s3_path(asset_file)
         logging.info(f"Adding asset {asset_file} to item")
@@ -622,13 +640,13 @@ def add_assets_to_item(item, asset_list: list, s3_resource: None):
 
 
 def cell_area_to_distance(item, properties_to_transform):
-    """
-    Converts the given properties (representing area) to distance by taking the square root
-    of their values. Capitalizes '2d' to '2D' in the property names.
+    """Convert the given properties (representing area) to distance by taking the square root of their values. Capitalizes '2d' to '2D' in the property names.
 
-    Parameters:
+    Parameters
+    ----------
     - item: The item thats having its properties transformed.
     - properties_to_transform: List of properties to transform.
+
     """
     for prop in properties_to_transform:
         capitalized_prop = prop.replace("2d", "2D")

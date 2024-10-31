@@ -21,7 +21,6 @@ TEST_GEOM_ITEM = TEST_JSON / "test_geom_item.json"
 
 
 def test_geom_item():
-
     ras_geom_hdf = RasGeomHdf(TEST_GEOM)
     ras_model_name = "test_model"
     test_asset = "s3://test_bucket/test_prefix/test_model.f03"

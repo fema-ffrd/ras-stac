@@ -1,3 +1,5 @@
+"""Module for creating STAC items from HEC-RAS geometry HDF files."""
+
 from .utils.logger import setup_logging
 import logging
 import sys
@@ -29,6 +31,7 @@ def new_geom_item(
     item_props_to_add: dict = None,
     s3_resource=None,
 ):
+    """Create a new STAC item from a HEC-RAS geometry HDF object."""
     ras_stac_geom = RasStacGeom(ras_geom_hdf)
     stac_properties = ras_stac_geom.get_stac_geom_attrs()
 
@@ -80,7 +83,7 @@ def main(
     item_props_to_remove: list = None,
     item_props_to_add: dict = None,
 ):
-
+    """Create stac item from papipyplug input."""
     verify_safe_prefix(new_item_s3_path)
     logging.info(f"Creating geom item: {new_item_s3_path}")
 

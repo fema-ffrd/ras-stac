@@ -16,7 +16,6 @@ TEST_PLAN_ITEM = TEST_JSON / "test_plan_item.json"
 
 
 def test_plan_item():
-
     ras_plan_hdf = RasPlanHdf(TEST_PLAN)
     ras_model_name = "test_model"
     test_asset = "s3://test_bucket/test_prefix/test_model.f03"
