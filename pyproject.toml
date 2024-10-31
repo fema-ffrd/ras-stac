@@ -36,5 +36,8 @@ testpaths = "tests"
 [tool.ruff.lint]
 select = ["D"]
 
-# [tool.ruff.lint.pydocstyle]
-# convention = "numpy"
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
