@@ -237,7 +237,7 @@ def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
     logging.info(f"Generating thumbnail at {thumb_path}")
     converter.export_thumbnail(thumb_path)
     stac_path = out_prefix + f"{converter.idx}.json"
-    logging.info(f"Generating STAC item at {thumb_path}")
+    logging.info(f"Generating STAC item at {stac_path}")
     converter.export_stac(stac_path)
     return {"in_path": in_prefix, "crs": crs, "thumb_path": thumb_path, "stac_path": stac_path}
 
