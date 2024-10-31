@@ -1,65 +1,8 @@
 {
     "type": "Feature",
     "stac_version": "1.0.0",
+    "stac_extensions": [],
     "id": "test_model",
-    "properties": {
-        "ras:simulation": "test_model",
-        "file_type": "HEC-RAS Results",
-        "file_version": "HEC-RAS 6.3.1 September 2022",
-        "projection": "PROJCS[\"NAD_1983_StatePlane_Indiana_East_FIPS_1301_Feet\",GEOGCS[\"GCS_North_American_1983\",DATUM[\"D_North_American_1983\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",328083.3333333333],PARAMETER[\"False_Northing\",820208.3333333333],PARAMETER[\"Central_Meridian\",-85.66666666666667],PARAMETER[\"Scale_Factor\",0.9999666666666667],PARAMETER[\"Latitude_Of_Origin\",37.5],UNIT[\"Foot_US\",0.3048006096012192]]",
-        "units_system": "US Customary",
-        "plan_information:base_output_interval": "1HOUR",
-        "plan_information:computation_time_step_base": "10SEC",
-        "plan_information:flow_filename": "Muncie.u01",
-        "plan_information:geometry_filename": "Muncie.g04",
-        "plan_information:plan_filename": "Muncie.p04",
-        "plan_information:plan_name": "Unsteady Run with 2D 50ft User n Value R",
-        "plan_information:project_filename": "C:\\Users\\slawler\\Downloads\\Example_Projects_6_5\\Example_Projects\\2D Unsteady Flow Hydraulics\\Muncie\\Muncie.prj",
-        "plan_information:project_title": "Muncie 2D Flow Area",
-        "plan_information:simulation_end_time": "1900-01-03T00:00:00",
-        "plan_information:simulation_start_time": "1900-01-02T00:00:00",
-        "plan_parameters:1d_flow_tolerance": null,
-        "plan_parameters:1d_maximum_iterations": 20,
-        "plan_parameters:1d_maximum_iterations_without_improvement": 0,
-        "plan_parameters:1d_maximum_water_surface_error_to_abort": 100.0,
-        "plan_parameters:1d_storage_area_elevation_tolerance": 0.009999999776482582,
-        "plan_parameters:1d_theta": 1.0,
-        "plan_parameters:1d_theta_warmup": 1.0,
-        "plan_parameters:1d_water_surface_elevation_tolerance": 0.009999999776482582,
-        "plan_parameters:1d2d_gate_flow_submergence_decay_exponent": 1.0,
-        "plan_parameters:1d2d_is_stablity_factor": 1.0,
-        "plan_parameters:1d2d_ls_stablity_factor": 2.0,
-        "plan_parameters:1d2d_maximum_iterations": 0,
-        "plan_parameters:1d2d_maximum_number_of_time_slices": 20,
-        "plan_parameters:1d2d_minimum_time_step_for_slicinghours": 0.0,
-        "plan_parameters:1d2d_number_of_warmup_steps": 20,
-        "plan_parameters:1d2d_warmup_time_step_hours": 0.0,
-        "plan_parameters:1d2d_water_surface_tolerance": 0.009999999776482582,
-        "plan_parameters:1d2d_weir_flow_submergence_decay_exponent": 3.0,
-        "plan_parameters:2d_equation_set": "Diffusion Wave",
-        "plan_parameters:2d_names": "2D Interior Area",
-        "plan_parameters:2d_volume_tolerance": 0.009999999776482582,
-        "plan_parameters:2d_water_surface_tolerance": 0.009999999776482582,
-        "unsteady_results:plan_title": "Unsteady Run with 2D 50ft User n Value R",
-        "unsteady_results:program_name": "HEC-RAS - River Analysis System",
-        "unsteady_results:program_version": "HEC-RAS 6.3.1 October 2022",
-        "unsteady_results:project_file_name": "C:\\Users\\slawler\\Downloads\\Example_Projects_6_5\\Example_Projects\\2D Unsteady Flow Hydraulics\\Muncie\\Muncie.prj",
-        "unsteady_results:project_title": "Muncie 2D Flow Area",
-        "unsteady_results:simulation_time_window": [
-            "1900-01-02T00:00:00",
-            "1900-01-03T00:00:00"
-        ],
-        "unsteady_results:type_of_run": "Unsteady Flow Analysis",
-        "results_summary:computation_time_total": "0:00:27",
-        "results_summary:run_time_window": [
-            "2024-05-14T15:20:01",
-            "2024-05-14T15:20:28"
-        ],
-        "results_summary:solution": "Unsteady Finished Successfully",
-        "start_datetime": "2024-05-14T15:20:01Z",
-        "end_datetime": "2024-05-14T15:20:28Z",
-        "datetime": "2024-05-14T15:20:01Z"
-    },
     "geometry": {
         "type": "Polygon",
         "coordinates": [
@@ -747,6 +690,70 @@
             ]
         ]
     },
+    "bbox": [
+        -85.39137305015555,
+        40.192653150967104,
+        -85.36543380168806,
+        40.20369615019758
+    ],
+    "properties": {
+        "ras:simulation": "test_model",
+        "file_type": "HEC-RAS Results",
+        "file_version": "HEC-RAS 6.3.1 September 2022",
+        "projection": "PROJCS[\"NAD_1983_StatePlane_Indiana_East_FIPS_1301_Feet\",GEOGCS[\"GCS_North_American_1983\",DATUM[\"D_North_American_1983\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",328083.3333333333],PARAMETER[\"False_Northing\",820208.3333333333],PARAMETER[\"Central_Meridian\",-85.66666666666667],PARAMETER[\"Scale_Factor\",0.9999666666666667],PARAMETER[\"Latitude_Of_Origin\",37.5],UNIT[\"Foot_US\",0.3048006096012192]]",
+        "units_system": "US Customary",
+        "plan_information:base_output_interval": "1HOUR",
+        "plan_information:computation_time_step_base": "10SEC",
+        "plan_information:flow_filename": "Muncie.u01",
+        "plan_information:geometry_filename": "Muncie.g04",
+        "plan_information:plan_filename": "Muncie.p04",
+        "plan_information:plan_name": "Unsteady Run with 2D 50ft User n Value R",
+        "plan_information:project_filename": "C:\\Users\\slawler\\Downloads\\Example_Projects_6_5\\Example_Projects\\2D Unsteady Flow Hydraulics\\Muncie\\Muncie.prj",
+        "plan_information:project_title": "Muncie 2D Flow Area",
+        "plan_information:simulation_end_time": "1900-01-03T00:00:00",
+        "plan_information:simulation_start_time": "1900-01-02T00:00:00",
+        "plan_parameters:1d_flow_tolerance": null,
+        "plan_parameters:1d_maximum_iterations": 20,
+        "plan_parameters:1d_maximum_iterations_without_improvement": 0,
+        "plan_parameters:1d_maximum_water_surface_error_to_abort": 100.0,
+        "plan_parameters:1d_storage_area_elevation_tolerance": 0.009999999776482582,
+        "plan_parameters:1d_theta": 1.0,
+        "plan_parameters:1d_theta_warmup": 1.0,
+        "plan_parameters:1d_water_surface_elevation_tolerance": 0.009999999776482582,
+        "plan_parameters:1d2d_gate_flow_submergence_decay_exponent": 1.0,
+        "plan_parameters:1d2d_is_stablity_factor": 1.0,
+        "plan_parameters:1d2d_ls_stablity_factor": 2.0,
+        "plan_parameters:1d2d_maximum_iterations": 0,
+        "plan_parameters:1d2d_maximum_number_of_time_slices": 20,
+        "plan_parameters:1d2d_minimum_time_step_for_slicinghours": 0.0,
+        "plan_parameters:1d2d_number_of_warmup_steps": 20,
+        "plan_parameters:1d2d_warmup_time_step_hours": 0.0,
+        "plan_parameters:1d2d_water_surface_tolerance": 0.009999999776482582,
+        "plan_parameters:1d2d_weir_flow_submergence_decay_exponent": 3.0,
+        "plan_parameters:2d_equation_set": "Diffusion Wave",
+        "plan_parameters:2d_names": "2D Interior Area",
+        "plan_parameters:2d_volume_tolerance": 0.009999999776482582,
+        "plan_parameters:2d_water_surface_tolerance": 0.009999999776482582,
+        "unsteady_results:plan_title": "Unsteady Run with 2D 50ft User n Value R",
+        "unsteady_results:program_name": "HEC-RAS - River Analysis System",
+        "unsteady_results:program_version": "HEC-RAS 6.3.1 October 2022",
+        "unsteady_results:project_file_name": "C:\\Users\\slawler\\Downloads\\Example_Projects_6_5\\Example_Projects\\2D Unsteady Flow Hydraulics\\Muncie\\Muncie.prj",
+        "unsteady_results:project_title": "Muncie 2D Flow Area",
+        "unsteady_results:simulation_time_window": [
+            "1900-01-02T00:00:00",
+            "1900-01-03T00:00:00"
+        ],
+        "unsteady_results:type_of_run": "Unsteady Flow Analysis",
+        "results_summary:computation_time_total": "0:00:27",
+        "results_summary:run_time_window": [
+            "2024-05-14T15:20:01",
+            "2024-05-14T15:20:28"
+        ],
+        "results_summary:solution": "Unsteady Finished Successfully",
+        "start_datetime": "2024-05-14T15:20:01Z",
+        "end_datetime": "2024-05-14T15:20:28Z",
+        "datetime": "2024-05-14T15:20:01Z"
+    },
     "links": [],
     "assets": {
         "test_model.f03": {
@@ -758,12 +765,5 @@
                 "text/plain"
             ]
         }
-    },
-    "bbox": [
-        -85.39137305015555,
-        40.192653150967104,
-        -85.36543380168806,
-        40.20369615019758
-    ],
-    "stac_extensions": []
+    }
 }
