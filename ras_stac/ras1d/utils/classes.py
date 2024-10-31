@@ -549,8 +549,11 @@ class XS:
         Example: Type RM Length L Ch R = 1 ,83554.  ,237.02,192.39,113.07.
         """
         header = search_contents(self.ras_data, "Type RM Length L Ch R ", expect_one=True)
-
-        return header.split(",")[position]
+        val = header.split(",")[position]
+        if val == "":
+            return "0"
+        else:
+            return val
 
     @property
     def river_station(self):
