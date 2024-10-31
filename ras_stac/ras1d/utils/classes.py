@@ -472,8 +472,11 @@ class GeometryAsset(GenericAsset):
         """Get the latest node last updated entry for this geometry"""
         dts = search_contents(self.file_str.splitlines(), "Node Last Edited Time", expect_one=False)
         if len(dts) >= 1:
-            dts = [datetime.strptime(d, "%b/%d/%Y %H:%M:%S") for d in dts]
-            return max(dts)
+            try:
+                dts = [datetime.strptime(d, "%b/%d/%Y %H:%M:%S") for d in dts]
+                return max(dts)
+            except ValueError:
+                return None
         else:
             return None
 
