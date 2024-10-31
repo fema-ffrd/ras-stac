@@ -15,7 +15,7 @@ TEST_PLAN_RESULTS_ATTRS = TEST_JSON / "test_plan_results_attrs.json"
 TEST_PLAN_ITEM = TEST_JSON / "test_plan_item.json"
 
 
-def test_geom_item():
+def test_plan_item():
 
     ras_plan_hdf = RasPlanHdf(TEST_PLAN)
     ras_model_name = "test_model"
