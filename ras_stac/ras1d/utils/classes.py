@@ -10,13 +10,9 @@ import pandas as pd
 import pystac
 from pyproj import CRS
 from shapely import make_valid, union_all
-from shapely.geometry import (
-    LineString,
-    MultiPolygon,
-    Point,
-    Polygon,
-)
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon, shape
 
+from ras_stac.ras1d.data.us_geom import us_bounds
 from ras_stac.ras1d.utils.common import file_location
 from ras_stac.ras1d.utils.ras_utils import (
     data_pairs_from_text_block,
@@ -47,7 +43,7 @@ def check_crs(func):
 
     def wrapper(self, *args, **kwargs):
         if self.crs is None:
-            raise ValueError("Projection cannot be None")
+            return None
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -221,6 +217,24 @@ class SteadyFlowAsset(GenericAsset):
         return ex
 
 
+class NullGeometryAsset(GenericAsset):
+
+    def __init__(self):
+        features = us_bounds["features"]
+        geometries = [shape(feature["geometry"]) for feature in features]
+        properties = [feature["properties"] for feature in features]
+        gdf = gpd.GeoDataFrame(properties, geometry=geometries, crs="epsg:4326")
+        self.gdfs = {"null": gdf}
+        self.concave_hull = gdf
+
+    def __getattr__(self, name):
+        # Return None if the attribute is not found
+        return None
+
+    def get_river_miles(self):
+        return None
+
+
 class GeometryAsset(GenericAsset):
 
     def __init__(self, url: str):
@@ -253,7 +267,7 @@ class GeometryAsset(GenericAsset):
         return search_contents(self.contents, "Program Version", expect_one=False)
 
     @property
-    @check_crs
+    # @check_crs
     def reaches(self) -> dict:
         """A dictionary of the reaches contained in the HEC-RAS geometry file."""
         river_reaches = search_contents(self.contents, "River Reach", expect_one=False)
@@ -263,7 +277,7 @@ class GeometryAsset(GenericAsset):
         return reaches
 
     @property
-    @check_crs
+    # @check_crs
     def rivers(self) -> dict:
         """A nested river-reach dictionary of the rivers/reaches contained in the HEC-RAS geometry file."""
         rivers = {}
@@ -370,7 +384,7 @@ class GeometryAsset(GenericAsset):
         return len(self.junctions)
 
     @property
-    @check_crs
+    # @check_crs
     def n_rivers(self):
         """Number of rivers in the HEC-RAS geometry file."""
         return len(self.rivers)
@@ -504,6 +518,11 @@ class GeometryAsset(GenericAsset):
                 # RAS mostly uses "-1" to indicate True and "0" to indicate False. Checking for "1" also here.
                 return True
         return False
+
+    @property
+    def has_1d(self):
+        """Check if RAS geometry has any 1D components"""
+        return self.n_rivers > 0
 
 
 class XS:

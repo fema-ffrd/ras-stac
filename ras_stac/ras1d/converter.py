@@ -1,7 +1,8 @@
-import datetime
 import io
 import json
+import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -14,6 +15,7 @@ from shapely import to_geojson
 from ras_stac.ras1d.utils.classes import (
     GenericAsset,
     GeometryAsset,
+    NullGeometryAsset,
     PlanAsset,
     SteadyFlowAsset,
     ThumbAsset,
@@ -48,6 +50,8 @@ class Converter:
     def export_thumbnail(self, thumb_path: str) -> None:
         """Generate STAC thumbnail, save to S3, and log path."""
         gdfs = self.primary_geometry.gdfs
+        if len(gdfs) == 0 or "null" in gdfs:
+            return
         thumb = make_thumbnail(gdfs)
         if file_location(thumb_path) == "local":
             thumb.savefig(thumb_path, dpi=80)
@@ -72,15 +76,16 @@ class Converter:
         )
         stor_ext = StorageExtension.ext(stac, add_if_missing=True)
         stor_ext.apply(platform="AWS", region="us-east-1")
-        prj_ext = AssetProjectionExtension.ext(stac, add_if_missing=True)
-        og_crs = CRS(self.crs)
-        prj_ext.apply(
-            epsg=og_crs.to_epsg(),
-            wkt2=og_crs.to_wkt(),
-            geometry=self.get_footprint(),
-            bbox=self.get_bbox(),
-            centroid=to_geojson(self.get_centroid()),
-        )
+        if self.crs:
+            prj_ext = AssetProjectionExtension.ext(stac, add_if_missing=True)
+            og_crs = CRS(self.crs)
+            prj_ext.apply(
+                epsg=og_crs.to_epsg(),
+                wkt2=og_crs.to_wkt(),
+                geometry=self.get_footprint(),
+                bbox=self.get_bbox(),
+                centroid=to_geojson(self.get_centroid()),
+            )
         return stac
 
     @property
@@ -139,6 +144,7 @@ class Converter:
             "datetime_source": "processing_time" if self.primary_geometry.last_update is None else "model_geometry",
             "assigned_HUC8": self.huc8,
             "has_2d": any([a.has_2d for a in self.assets if isinstance(a, GeometryAsset)]),
+            "has_1d": any([a.has_1d for a in self.assets if isinstance(a, GeometryAsset)]),
         }
         for p in self.custom_properties:
             properties[p] = self.custom_properties[p]
@@ -177,7 +183,16 @@ class Converter:
     @property
     def primary_geometry(self) -> GeometryAsset:
         """The geometry file listed in the primary plan"""
-        return self.extension_dict[self.primary_plan.geometry]
+        if not self.crs:
+            return NullGeometryAsset()
+        try:
+            geom = self.extension_dict[self.primary_plan.geometry]
+        except Exception:
+            return NullGeometryAsset()
+        if not geom.has_1d:
+            return NullGeometryAsset()
+        else:
+            return geom
 
     def check_for_mip(self) -> None:
         mip_data = [a for a in self.assets if a.name == "mip_package_geolocation_metadata.json"]
@@ -214,11 +229,15 @@ def ras_to_stac(ras_dir: str, crs: str):
 
 def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
     """Convert a HEC-RAS model to a STAC item and save to same directory."""
+    logging.info(f"Processing model with crs {crs} at prefix {in_prefix}")
+    logging.info("Discovering model contents")
     converter = from_directory(in_prefix, crs)
     converter.check_for_mip()
     thumb_path = out_prefix + "Thumbnail.png"
+    logging.info(f"Generating thumbnail at {thumb_path}")
     converter.export_thumbnail(thumb_path)
     stac_path = out_prefix + f"{converter.idx}.json"
+    logging.info(f"Generating STAC item at {thumb_path}")
     converter.export_stac(stac_path)
     return {"in_path": in_prefix, "crs": crs, "thumb_path": thumb_path, "stac_path": stac_path}
 
@@ -226,6 +245,8 @@ def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
 if __name__ == "__main__":
     ras_dir = sys.argv[1]
     crs = sys.argv[2]
+    if crs == "None":
+        crs = None
     out_dir = sys.argv[3]
-    process_in_place_s3(ras_dir, crs, out_dir)
-    # ras_to_stac(ras_dir, crs)
+    # process_in_place_s3(ras_dir, crs, out_dir)
+    ras_to_stac(ras_dir, crs)
