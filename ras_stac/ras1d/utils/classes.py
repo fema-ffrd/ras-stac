@@ -406,6 +406,9 @@ class GeometryAsset(GenericAsset):
             return self._concave_hull
         polygons = []
         xs_df = self.xs_gdf  # shorthand
+        assert not all(
+            [i.is_empty for i in self.xs_gdf.geometry]
+        ), "No valid cross-sections found.  Possibly non-georeferenced model"
         for river_reach in xs_df["river_reach"].unique():
             xs_subset = xs_df[xs_df["river_reach"] == river_reach]
             points = xs_subset.boundary.explode(index_parts=True).unstack()
