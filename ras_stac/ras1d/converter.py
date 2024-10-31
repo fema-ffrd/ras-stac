@@ -91,7 +91,7 @@ class Converter:
     @property
     def idx(self):
         """Generate STAC item id from RAS name."""
-        return self.ras_prj_file.basename.replace(".prj", "").replace(" ", "_")
+        return self.ras_prj_file.basename.replace(".prj", "").replace(".PRJ", "").replace(" ", "_")
 
     def get_footprint(self, crs: str = None):
         """Return a geojson of the primary geometry cross-section concave hull"""
@@ -248,5 +248,5 @@ if __name__ == "__main__":
     if crs == "None":
         crs = None
     out_dir = sys.argv[3]
-    # process_in_place_s3(ras_dir, crs, out_dir)
-    ras_to_stac(ras_dir, crs)
+    process_in_place_s3(ras_dir, crs, out_dir)
+    # ras_to_stac(ras_dir, crs)

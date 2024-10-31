@@ -23,7 +23,7 @@ def generate_asset(url: str):
         base_asset = SteadyFlowAsset(url)
     elif "plan-file" in meta["roles"]:
         base_asset = PlanAsset(url)
-    elif url.endswith(".prj"):
+    elif url.lower().endswith(".prj"):
         base_asset = ProjectAsset(url)
         if base_asset.is_ras_prj:
             meta["roles"].extend(["project-file", "ras-file", pystac.MediaType.TEXT])
