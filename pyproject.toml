@@ -18,10 +18,10 @@ classifiers = [
 version = "0.1.1-beta.1"
 requires-python = ">=3.9"
 dependencies = ["boto3", "botocore", "fsspec", "mypy", "numpy", "papipyplug",
-               "python-dotenv", "pystac", "shapely", "rasterio", "rashdf"]
+               "python-dotenv", "pystac", "shapely", "rasterio", "rashdf", "mypy-boto3-s3"]
 
 [project.optional-dependencies]
-dev = ["pre-commit", "ruff"]
+dev = ["pre-commit", "ruff", "pytest", "moto", "jsonschema"]
 
 [project.urls]
 repository = "https://github.com/fema-ffrd/ras-stac"
