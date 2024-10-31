@@ -26,14 +26,15 @@ dev = ["pre-commit", "ruff"]
 [project.urls]
 repository = "https://github.com/fema-ffrd/ras-stac"
 
-# TODO: add tests.
-# [tool.pytest.ini_options]
-# pythonpath = "src"
-# testpaths = "tests"
+[project.scripts]
+ras_stac = "cli:main"
 
-# TODO: linting for docstrings.
-# [tool.ruff.lint]
-# select = ["D"]
+[tool.pytest.ini_options]
+pythonpath = "src"
+testpaths = "tests"
+
+[tool.ruff.lint]
+select = ["D"]
 
 # [tool.ruff.lint.pydocstyle]
 # convention = "numpy"
