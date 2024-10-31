@@ -47,6 +47,7 @@ def main():
         print_results(results)
     except Exception as e:
         logging.warning(e)
+        raise e
 
 
 if __name__ == "__main__":
