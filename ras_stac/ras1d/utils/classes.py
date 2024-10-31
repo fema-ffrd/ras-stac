@@ -86,7 +86,7 @@ class GenericAsset:
 
     @property
     def is_ras_prj(self) -> bool:
-        if not self.endswith(".prj"):
+        if not self.lower().endswith(".prj"):
             return False
         if self.file_str is None:
             self.download_asset_str()
