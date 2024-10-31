@@ -165,7 +165,9 @@ class Converter:
         """The RAS project file in this directory."""
         potentials = [a for a in self.assets if a.is_ras_prj]
         if len(potentials) != 1:
-            raise RuntimeError(f"Model directory did not contain one RAS project file.  Found: {potentials}")
+            raise RuntimeError(
+                f"Model directory did not contain one RAS project file.  Found: {[str(p) for p in potentials]}"
+            )
         return potentials[0]
 
     @property
@@ -249,6 +251,6 @@ if __name__ == "__main__":
     crs = sys.argv[2]
     if crs == "None":
         crs = None
-    out_dir = sys.argv[3]
-    # process_in_place_s3(ras_dir, crs, out_dir)
-    ras_to_stac(ras_dir, crs)
+    out_dir = ras_dir.replace("source_models", "stac_items")
+    process_in_place_s3(ras_dir, crs, out_dir)
+    # ras_to_stac(ras_dir, crs)
