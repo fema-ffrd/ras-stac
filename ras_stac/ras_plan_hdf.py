@@ -1,6 +1,5 @@
 from .utils.logger import setup_logging
 import logging
-import pystac
 import sys
 
 from dotenv import find_dotenv, load_dotenv

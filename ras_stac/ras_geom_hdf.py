@@ -1,6 +1,5 @@
 from .utils.logger import setup_logging
 import logging
-import numpy as np
 import sys
 
 from dotenv import load_dotenv, find_dotenv
