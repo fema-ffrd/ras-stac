@@ -3,7 +3,7 @@ import logging
 import sys
 import warnings
 
-from botocore.exceptions import NoSuchKey
+from botocore.exceptions import ClientError
 
 from ras_stac.ras1d.converter import process_in_place_s3
 from ras_stac.ras1d.utils.s3_utils import str_from_s3
@@ -21,7 +21,7 @@ def owp_wrapper(in_prefix: str, out_prefix: str) -> dict:
     try:
         crs_dict = json.loads(str_from_s3(crs_path))
         crs = crs_dict["best_crs"]
-    except NoSuchKey:
+    except ClientError:
         crs = None
     return process_in_place_s3(in_prefix, crs, out_prefix)
 
