@@ -117,6 +117,8 @@ class Converter:
 
     @property
     def huc8(self):
+        if not self.crs:
+            return None
         centroid = self.get_centroid("epsg:4326")
         return get_huc8(centroid.x, centroid.y)
 
@@ -248,5 +250,5 @@ if __name__ == "__main__":
     if crs == "None":
         crs = None
     out_dir = sys.argv[3]
-    process_in_place_s3(ras_dir, crs, out_dir)
-    # ras_to_stac(ras_dir, crs)
+    # process_in_place_s3(ras_dir, crs, out_dir)
+    ras_to_stac(ras_dir, crs)
