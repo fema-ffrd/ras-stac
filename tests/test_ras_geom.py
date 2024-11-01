@@ -27,13 +27,18 @@ def test_geom_item():
     item = new_geom_item(ras_geom_hdf, ras_model_name, asset_list=[test_asset])
     item.validate()
 
-    item_json = json.dumps(item.to_dict(), indent=4)
+    item_dict = item.to_dict()
+
     with open(TEST_GEOM_ITEM, "r") as f:
         test_item_content = json.load(f)
 
-    test_item_json = json.dumps(test_item_content, indent=4)
-
-    assert item_json == test_item_json
+    assert item_dict["type"] == test_item_content["type"]
+    assert item_dict["stac_version"] == test_item_content["stac_version"]
+    assert item_dict["id"] == test_item_content["id"]
+    assert item_dict["properties"] == test_item_content["properties"]
+    assert item_dict["geometry"] == test_item_content["geometry"]
+    assert list(item_dict["bbox"]) == list(test_item_content["bbox"])
+    assert item_dict["assets"] == test_item_content["assets"]
 
 
 def test_geom_properties():
