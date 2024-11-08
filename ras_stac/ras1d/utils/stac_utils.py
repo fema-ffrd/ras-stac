@@ -9,6 +9,7 @@ from ras_stac.ras1d.utils.classes import (
     PlanAsset,
     ProjectAsset,
     SteadyFlowAsset,
+    UnsteadyFlowAsset,
 )
 
 
@@ -21,6 +22,8 @@ def generate_asset(url: str):
         base_asset = GeometryAsset(url)
     elif "steady-flow-file" in meta["roles"]:
         base_asset = SteadyFlowAsset(url)
+    elif "unsteady-file" in meta["roles"]:
+        base_asset = UnsteadyFlowAsset(url)
     elif "plan-file" in meta["roles"]:
         base_asset = PlanAsset(url)
     elif url.lower().endswith(".prj"):

@@ -29,6 +29,13 @@ def save_bytes_s3(byte_obj: bytes, s3_key: str, content_type: str = "image/png")
     s3_client.put_object(Body=byte_obj, ContentType=content_type, Bucket=bucket, Key=key)
 
 
+def save_file_s3(src_file: str, s3_key: str) -> None:
+    """Upload a file to an s3 key"""
+    _, s3_client, _ = init_s3_resources()
+    bucket, key = split_s3_key(s3_key)
+    s3_client.upload_file(Filename=src_file, Bucket=bucket, Key=key)
+
+
 def key_metadata(s3_key: str) -> dict:
     """Wrap get_basic_object_metadata"""
     _, _, s3_resource = init_s3_resources()

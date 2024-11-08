@@ -22,7 +22,6 @@ from ras_stac.ras1d.utils.ras_utils import (
     text_block_from_start_str_to_empty_line,
 )
 from ras_stac.ras1d.utils.s3_utils import key_metadata, split_s3_key, str_from_s3
-from ras_stac.utils.s3_utils import get_basic_object_metadata
 
 
 # Decorator functions
@@ -189,11 +188,81 @@ class PlanAsset(GenericAsset):
 
     @property
     @cache_data
+    def flow(self) -> str:
+        """Get the flow listed in the plan file."""
+        return search_contents(self.file_str.splitlines(), "Flow File", expect_one=True)
+
+    @property
+    @cache_data
     def title(self) -> str:
         return search_contents(self.file_str.splitlines(), "Plan Title", expect_one=True)
 
 
 class SteadyFlowAsset(GenericAsset):
+
+    @property
+    @cache_data
+    def title(self):
+        return search_contents(self.file_str.splitlines(), "Flow Title", expect_one=True)
+
+    @property
+    def n_profiles(self):
+        return len(self.profile_names)
+
+    @property
+    @cache_data
+    def profile_names(self):
+        return search_contents(self.file_str.splitlines(), "Profile Names").split(",")
+
+    @property
+    def _extra_fields(self):
+        ex = {}
+        ex["number_of_profiles"] = self.n_profiles
+        ex["number_of_profiles"] = self.profile_names
+        return ex
+
+    @property
+    @cache_data
+    def flow_change_locations(self):
+        """Retrieve flow change locations."""
+        flow_change_locations = []
+        for location in search_contents(self.file_str.splitlines(), "River Rch & RM", expect_one=False):
+            # parse river, reach, and river station for the flow change location
+            river, reach, rs = location.split(",")
+            lines = text_block_from_start_end_str(
+                f"River Rch & RM={location}",
+                ["River Rch & RM", "Boundary for River Rch & Prof#"],
+                self.file_str.splitlines(),
+            )
+            flows = []
+
+            for line in lines[1:]:
+
+                if "River Rch & RM" in line:
+                    break
+                for i in range(0, len(line), 8):
+                    flows.append(float(line[i : i + 8].lstrip(" ")))
+                    if len(flows) == self.n_profiles:
+                        flow_change_locations.append(
+                            {
+                                "river": river,
+                                "reach": reach.rstrip(" "),
+                                "rs": float(rs),
+                                "flows": flows,
+                                "profile_names": self.profile_names,
+                            }
+                        )
+                    if len(flow_change_locations) == self.n_flow_change_locations:
+                        return flow_change_locations
+
+    @property
+    @cache_data
+    def n_flow_change_locations(self):
+        """Number of flow change locations."""
+        return len(search_contents(self.file_str.splitlines(), "River Rch & RM", expect_one=False))
+
+
+class UnsteadyFlowAsset(GenericAsset):
 
     @property
     @cache_data
@@ -351,6 +420,7 @@ class GeometryAsset(GenericAsset):
         gdfs = {}
         if self.cross_sections:
             gdfs["XS"] = self.xs_gdf
+            gdfs["XS_concave_hull"] = self.concave_hull
         if self.reaches:
             gdfs["River"] = self.reach_gdf
         if self.junctions:
@@ -388,16 +458,6 @@ class GeometryAsset(GenericAsset):
     def n_rivers(self):
         """Number of rivers in the HEC-RAS geometry file."""
         return len(self.rivers)
-
-    @check_crs
-    def to_gpkg(self, gpkg_path: str):
-        """Write the HEC-RAS Geometry file to geopackage."""
-        self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
-        self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
-        if self.junctions:
-            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
-        if self.structures:
-            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure")
 
     @property
     def concave_hull(self):

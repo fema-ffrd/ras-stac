@@ -19,14 +19,16 @@ from ras_stac.ras1d.utils.classes import (
     PlanAsset,
     SteadyFlowAsset,
     ThumbAsset,
+    UnsteadyFlowAsset,
 )
 from ras_stac.ras1d.utils.common import (
+    create_non_spatial_table,
     file_location,
     gather_dir_local,
     get_huc8,
     make_thumbnail,
 )
-from ras_stac.ras1d.utils.s3_utils import gather_dir_s3, save_bytes_s3
+from ras_stac.ras1d.utils.s3_utils import gather_dir_s3, save_bytes_s3, save_file_s3
 from ras_stac.ras1d.utils.stac_utils import generate_asset
 
 
@@ -37,6 +39,13 @@ class Converter:
         self.crs = crs
         [a.set_crs(crs) for a in self.assets if isinstance(a, GeometryAsset)]
         self.custom_properties = {}
+        # find root
+        self.root = ""
+        for i in range(len(asset_paths[0])):
+            if all([tmp[i] == asset_paths[0][i] for tmp in asset_paths]):
+                self.root += asset_paths[0][i]
+            else:
+                break
 
     def export_stac(self, output_path: str) -> None:
         """Export the converted STAC item."""
@@ -198,6 +207,14 @@ class Converter:
         else:
             return geom
 
+    @property
+    def primary_flow(self) -> SteadyFlowAsset:
+        """The flow file listed in the primary plan"""
+        try:
+            return self.extension_dict[self.primary_plan.flow]
+        except Exception:
+            return None
+
     def check_for_mip(self) -> None:
         mip_data = [a for a in self.assets if a.name == "mip_package_geolocation_metadata.json"]
         if len(mip_data) == 0:
@@ -214,6 +231,83 @@ class Converter:
             self.custom_properties["fema_case_number"] = mip_json["case"]
             self.custom_properties["fema_case_counties"] = mip_json["county"]
 
+    @property
+    def metadata(self):
+        """Generate dictionary of metadata for HEC-RAS model"""
+        meta = {}
+        meta["plans_files"] = "\n".join([a.url.replace(self.root, "") for a in self.assets if isinstance(a, PlanAsset)])
+        meta["geom_files"] = "\n".join(
+            [a.url.replace(self.root, "") for a in self.assets if isinstance(a, GeometryAsset)]
+        )
+        meta["steady_flow_files"] = "\n".join(
+            [a.url.replace(self.root, "") for a in self.assets if isinstance(a, SteadyFlowAsset)]
+        )
+        meta["unsteady_flow_files"] = "\n".join(
+            [a.url.replace(self.root, "") for a in self.assets if isinstance(a, UnsteadyFlowAsset)]
+        )
+
+        meta["plans_titles"] = "\n".join([a.title for a in self.assets if isinstance(a, PlanAsset)])
+        meta["geom_titles"] = "\n".join([a.title for a in self.assets if isinstance(a, GeometryAsset)])
+        meta["steady_flow_titles"] = "\n".join([a.title for a in self.assets if isinstance(a, SteadyFlowAsset)])
+
+        meta["ras_project_file"] = self.ras_prj_file.url.replace(self.root, "")
+        meta["ras_project_title"] = self.ras_prj_file.title
+        meta["primary_plan_file"] = self.primary_plan.url.replace(self.root, "")
+        meta["primary_plan_title"] = self.primary_plan.title
+        meta["primary_flow_file"] = self.primary_flow.url.replace(self.root, "")
+        meta["primary_flow_title"] = self.primary_flow.title
+        meta["primary_geom_file"] = self.primary_geometry.url.replace(self.root, "")
+        meta["primary_geom_title"] = self.primary_geometry.title
+
+        meta["ras_version"] = self.primary_geometry.ras_version
+        flow_changes = pd.DataFrame(self.primary_flow.flow_change_locations)
+        meta["profile_names"] = "\n".join(flow_changes["profile_names"].iloc[0])
+        meta["units"] = self.primary_geometry.units
+
+        return meta
+
+    @property
+    def gdfs(self):
+        """Create geodataframes from primary geometry and attribute with data from primary plan and flow files"""
+        # Get primary geometry GDF
+        primary_gdfs = self.primary_geometry.gdfs
+
+        # Attribute XS layer with flow data
+        xs = primary_gdfs["XS"]
+        flow_changes = pd.DataFrame(self.primary_flow.flow_change_locations)
+        flow_changes["river_reach"] = flow_changes["river"] + flow_changes["reach"]
+        for river_reach in flow_changes["river_reach"].unique():
+            # get flow change locations for this reach
+            tmp_flow_changes = flow_changes.loc[flow_changes["river_reach"] == river_reach, :].sort_values(
+                by="rs", ascending=False
+            )
+            # iterate through this reaches flow change locations and set cross section flows/profile names
+            for _, row in tmp_flow_changes.iterrows():
+                mask = (
+                    (xs["river"] == row["river"]) & (xs["reach"] == row["reach"]) & (xs["river_station"] <= row["rs"])
+                )
+                # add flows to xs_gdf
+                xs.loc[mask, "flows"] = "\n".join([str(f) for f in row["flows"]])
+                # add profile names to xs_gdf
+                xs.loc[mask, "profile_names"] = "\n".join(row["profile_names"])
+        primary_gdfs["XS"] = xs
+
+        return primary_gdfs
+
+    def export_gpkg(self, out_path: str) -> None:
+        """Save a geopackage file representing the primary geometry"""
+        if file_location(out_path) != "local":
+            tmp_out_path = f"{self.idx}.gpkg"
+        else:
+            tmp_out_path = out_path
+        gdfs = self.gdfs
+        for layer in gdfs:
+            gdfs[layer].to_file(tmp_out_path, driver="GPKG", layer=layer)
+        create_non_spatial_table(tmp_out_path, self.metadata)
+        if file_location(out_path) != "local":
+            save_file_s3(tmp_out_path, out_path)
+        self.assets.append(GenericAsset(out_path))
+
 
 def from_directory(model_dir: str, crs: str) -> Converter:
     """Scrape assets from directory and return Converter object."""
@@ -227,8 +321,9 @@ def from_directory(model_dir: str, crs: str) -> Converter:
 def ras_to_stac(ras_dir: str, crs: str):
     """Convert a HEC-RAS model to a STAC item and save to same directory."""
     converter = from_directory(ras_dir, crs)
-    converter.export_thumbnail(str(Path(ras_dir) / "thumbnail.png"))
-    converter.export_stac(str(Path(ras_dir) / "debugging.json"))
+    converter.export_gpkg(str(Path(ras_dir) / "geopackage.gpkg"))
+    # converter.export_thumbnail(str(Path(ras_dir) / "thumbnail.png"))
+    # converter.export_stac(str(Path(ras_dir) / "debugging.json"))
 
 
 def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
@@ -252,5 +347,5 @@ if __name__ == "__main__":
     if crs == "None":
         crs = None
     out_dir = ras_dir.replace("source_models", "stac_items")
-    process_in_place_s3(ras_dir, crs, out_dir)
-    # ras_to_stac(ras_dir, crs)
+    # process_in_place_s3(ras_dir, crs, out_dir)
+    ras_to_stac(ras_dir, crs)

@@ -1,4 +1,5 @@
 import os
+import sqlite3
 
 import contextily as ctx
 import matplotlib.pyplot as plt
@@ -22,6 +23,30 @@ def gather_dir_local(in_path: str) -> list:
         for item in files:
             out_list.append(str(os.path.join(root, item)))
     return out_list
+
+
+def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
+    """Create the metadata table in the geopackage."""
+    with sqlite3.connect(gpkg_path) as conn:
+        string = ""
+        curs = conn.cursor()
+        curs.execute("DROP TABLE IF Exists metadata")
+        curs.execute("CREATE TABLE IF NOT EXISTS metadata (key, value);")
+        curs.close()
+
+    with sqlite3.connect(gpkg_path) as conn:
+        curs = conn.cursor()
+        keys, vals = "", ""
+        for key, val in metadata.items():
+
+            if val:
+                keys += f"{key},"
+                vals += f"{val.replace(',','_')}, "
+                curs.execute("INSERT INTO metadata (key,value) values (?,?);", (key, val))
+
+        curs.execute("COMMIT;")
+        curs.close()
+    return None
 
 
 def make_thumbnail(gdfs: dict):
