@@ -15,7 +15,9 @@ from shapely.geometry import LineString, MultiPolygon, Point, Polygon, shape
 from ras_stac.ras1d.data.us_geom import us_bounds
 from ras_stac.ras1d.utils.common import file_location
 from ras_stac.ras1d.utils.ras_utils import (
+    check_xs_direction,
     data_pairs_from_text_block,
+    reverse,
     search_contents,
     text_block_from_start_end_str,
     text_block_from_start_str_length,
@@ -150,6 +152,15 @@ class ThumbAsset(GenericAsset):
             description=self.description,
         )
         return asset
+
+
+class GeopackageAsset(GenericAsset):
+
+    def __init__(self, url):
+        super().__init__(url)
+        self.name = "GeoPackage_file"
+        self.roles = ["ras-geometry-gpkg", "application/geopackage+sqlite3"]
+        self.description = "GeoPackage file with geometry data extracted from .gxx file."
 
 
 class ProjectAsset(GenericAsset):
@@ -405,7 +416,22 @@ class GeometryAsset(GenericAsset):
     @check_crs
     def xs_gdf(self):
         """Geodataframe of all cross sections in the geometry text file."""
-        return pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
+        xs_gdf = pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
+
+        subsets = []
+        for _, reach in self.reach_gdf.iterrows():
+            subset_xs = xs_gdf.loc[xs_gdf["river_reach"] == reach["river_reach"]].copy()
+            not_reversed_xs = check_xs_direction(subset_xs, reach.geometry)
+            subset_xs["geometry"] = subset_xs.apply(
+                lambda row: (
+                    row.geometry
+                    if row["river_reach_rs"] in list(not_reversed_xs["river_reach_rs"])
+                    else reverse(row.geometry)
+                ),
+                axis=1,
+            )
+            subsets.append(subset_xs)
+        return pd.concat(subsets)
 
     @property
     @check_crs
@@ -467,7 +493,7 @@ class GeometryAsset(GenericAsset):
         polygons = []
         xs_df = self.xs_gdf  # shorthand
         assert not all(
-            [i.is_empty for i in self.xs_gdf.geometry]
+            [i.is_empty for i in xs_df.geometry]
         ), "No valid cross-sections found.  Possibly non-georeferenced model"
         for river_reach in xs_df["river_reach"].unique():
             xs_subset = xs_df[xs_df["river_reach"] == river_reach]
@@ -490,7 +516,6 @@ class GeometryAsset(GenericAsset):
         """Compute and return the concave hull (polygon) for a juction."""
         junction_xs = self.determine_junction_xs(self.xs_gdf, junction)
 
-        print(type(junction_xs))
         junction_xs["start"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[0], axis=1)
         junction_xs["end"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[1], axis=1)
         junction_xs["to_line"] = junction_xs.apply(lambda row: self.determine_xs_order(row, junction_xs), axis=1)
@@ -515,12 +540,12 @@ class GeometryAsset(GenericAsset):
                 xs_us_river_reach[xs_us_river_reach["river_station"] == xs_us_river_reach["river_station"].min()]
             )
         for ds_river, ds_reach in zip(junction.ds_rivers.split(","), junction.ds_reaches.split(",")):
-            xs_ds_river_reach = xs[(xs["river"] == ds_river) & (xs["reach"] == ds_reach)]
+            xs_ds_river_reach = xs[(xs["river"] == ds_river) & (xs["reach"] == ds_reach)].copy()
             xs_ds_river_reach["geometry"] = xs_ds_river_reach.reverse()
             junction_xs.append(
                 xs_ds_river_reach[xs_ds_river_reach["river_station"] == xs_ds_river_reach["river_station"].max()]
             )
-        return pd.concat(junction_xs)
+        return pd.concat(junction_xs).copy()
 
     def determine_xs_order(self, row: gpd.GeoSeries, junction_xs: gpd.gpd.GeoDataFrame):
         """Detemine what order cross sections bounding a junction should be in to produce a valid polygon."""

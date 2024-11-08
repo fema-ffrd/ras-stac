@@ -1,3 +1,14 @@
+import logging
+import os
+from functools import wraps
+
+import geopandas as gpd
+import numpy as np
+from shapely import lib
+from shapely.errors import UnsupportedGEOSVersionError
+from shapely.geometry import LineString, MultiPoint, Point
+
+
 def prj_is_ras(prj_contents: str):
     """Verify if prj is from hec-ras model."""
     if "Proj Title" in prj_contents.split("\n")[0]:
@@ -110,3 +121,153 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
             pairs.append((float(x), float(y)))
 
     return pairs
+
+
+def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
+    """Return only cross sections that are drawn right to left looking downstream."""
+    river_reach_rs = []
+    for _, xs in cross_sections.iterrows():
+        try:
+            point = reach.intersection(xs["geometry"])
+            point = validate_point(point)
+            xs_rs = reach.project(point)
+
+            offset = xs.geometry.offset_curve(-1)
+            if reach.intersects(offset):  # if the offset line intersects then use this logic
+                point = reach.intersection(offset)
+                point = validate_point(point)
+
+                offset_rs = reach.project(point)
+                if xs_rs > offset_rs:
+                    river_reach_rs.append(xs["river_reach_rs"])
+            else:  # if the original offset line did not intersect then try offsetting the other direction and applying
+                # the opposite stationing logic; the orginal line may have gone beyound the other line.
+                offset = xs.geometry.offset_curve(1)
+                point = reach.intersection(offset)
+                point = validate_point(point)
+
+                offset_rs = reach.project(point)
+                if xs_rs < offset_rs:
+                    river_reach_rs.append(xs["river_reach_rs"])
+
+        except IndexError as e:
+            logging.debug(
+                f"cross section does not intersect river-reach: {xs['river']} {xs['reach']} {xs['river_station']}: error: {e}"
+            )
+            continue
+    return cross_sections.loc[cross_sections["river_reach_rs"].isin(river_reach_rs)]
+
+
+def validate_point(geom):
+    """Validate that point is of type Point. If Multipoint or Linestring create point from first coordinate pair."""
+    if isinstance(geom, Point):
+        return geom
+    elif isinstance(geom, MultiPoint):
+        return geom.geoms[0]
+    elif isinstance(geom, LineString) and list(geom.coords):
+        return Point(geom.coords[0])
+    elif geom.is_empty:
+        raise IndexError(f"expected point at xs-river intersection got: {type(geom)} | {geom}")
+    else:
+        raise TypeError(f"expected point at xs-river intersection got: {type(geom)} | {geom}")
+
+
+class requires_geos:
+    def __init__(self, version):
+        if version.count(".") != 2:
+            raise ValueError("Version must be <major>.<minor>.<patch> format")
+        self.version = tuple(int(x) for x in version.split("."))
+
+    def __call__(self, func):
+        is_compatible = lib.geos_version >= self.version
+        is_doc_build = os.environ.get("SPHINX_DOC_BUILD") == "1"  # set in docs/conf.py
+        if is_compatible and not is_doc_build:
+            return func  # return directly, do not change the docstring
+
+        msg = "'{}' requires at least GEOS {}.{}.{}.".format(func.__name__, *self.version)
+        if is_compatible:
+
+            @wraps(func)
+            def wrapped(*args, **kwargs):
+                return func(*args, **kwargs)
+
+        else:
+
+            @wraps(func)
+            def wrapped(*args, **kwargs):
+                raise UnsupportedGEOSVersionError(msg)
+
+        doc = wrapped.__doc__
+        if doc:
+            # Insert the message at the first double newline
+            position = doc.find("\n\n") + 2
+            # Figure out the indentation level
+            indent = 0
+            while True:
+                if doc[position + indent] == " ":
+                    indent += 1
+                else:
+                    break
+            wrapped.__doc__ = doc.replace("\n\n", "\n\n{}.. note:: {}\n\n".format(" " * indent, msg), 1)
+
+        return wrapped
+
+
+def multithreading_enabled(func):
+    """Prepare multithreading by setting the writable flags of object type
+    ndarrays to False.
+
+    NB: multithreading also requires the GIL to be released, which is done in
+    the C extension (ufuncs.c)."""
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        array_args = [arg for arg in args if isinstance(arg, np.ndarray) and arg.dtype == object] + [
+            arg
+            for name, arg in kwargs.items()
+            if name not in {"where", "out"} and isinstance(arg, np.ndarray) and arg.dtype == object
+        ]
+        old_flags = [arr.flags.writeable for arr in array_args]
+        try:
+            for arr in array_args:
+                arr.flags.writeable = False
+            return func(*args, **kwargs)
+        finally:
+            for arr, old_flag in zip(array_args, old_flags):
+                arr.flags.writeable = old_flag
+
+    return wrapped
+
+
+@requires_geos("3.7.0")
+@multithreading_enabled
+def reverse(geometry, **kwargs):
+    """Returns a copy of a Geometry with the order of coordinates reversed.
+
+    If a Geometry is a polygon with interior rings, the interior rings are also
+    reversed.
+
+    Points are unchanged. None is returned where Geometry is None.
+
+    Parameters
+    ----------
+    geometry : Geometry or array_like
+    **kwargs
+        See :ref:`NumPy ufunc docs <ufuncs.kwargs>` for other keyword arguments.
+
+    See also
+    --------
+    is_ccw : Checks if a Geometry is clockwise.
+
+    Examples
+    --------
+    >>> from shapely import LineString, Polygon
+    >>> reverse(LineString([(0, 0), (1, 2)]))
+    <LINESTRING (1 2, 0 0)>
+    >>> reverse(Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]))
+    <POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))>
+    >>> reverse(None) is None
+    True
+    """
+
+    return lib.reverse(geometry, **kwargs)

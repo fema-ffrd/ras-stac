@@ -15,6 +15,7 @@ from shapely import to_geojson
 from ras_stac.ras1d.utils.classes import (
     GenericAsset,
     GeometryAsset,
+    GeopackageAsset,
     NullGeometryAsset,
     PlanAsset,
     SteadyFlowAsset,
@@ -28,7 +29,12 @@ from ras_stac.ras1d.utils.common import (
     get_huc8,
     make_thumbnail,
 )
-from ras_stac.ras1d.utils.s3_utils import gather_dir_s3, save_bytes_s3, save_file_s3
+from ras_stac.ras1d.utils.s3_utils import (
+    gather_dir_s3,
+    save_bytes_s3,
+    save_file_s3,
+    str_from_s3,
+)
 from ras_stac.ras1d.utils.stac_utils import generate_asset
 
 
@@ -306,7 +312,9 @@ class Converter:
         create_non_spatial_table(tmp_out_path, self.metadata)
         if file_location(out_path) != "local":
             save_file_s3(tmp_out_path, out_path)
-        self.assets.append(GenericAsset(out_path))
+
+        # Make an asset
+        self.assets.append(GeopackageAsset(out_path))
 
 
 def from_directory(model_dir: str, crs: str) -> Converter:
@@ -341,6 +349,25 @@ def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
     return {"in_path": in_prefix, "crs": crs, "thumb_path": thumb_path, "stac_path": stac_path}
 
 
+def append_geopackage(in_prefix: str, crs: str, out_prefix: str):
+    """Add geopackage to stac items (fix earlier omission for OWP deliverable)."""
+    logging.info(f"Processing model with crs {crs} at prefix {in_prefix}")
+    logging.info("Discovering model contents")
+    converter = from_directory(in_prefix, crs)
+    converter.check_for_mip()
+    gpkg_path = out_prefix + f"{converter.idx}.gpkg"
+    logging.info(f"Generating geopackage at {gpkg_path}")
+    converter.export_gpkg(gpkg_path)
+    stac_path = out_prefix + f"{converter.idx}.json"
+    logging.info(f"Updating STAC item at {stac_path}")
+    stac_item = json.loads(str_from_s3(stac_path))
+    gpkg_asset = [a for a in converter.assets if isinstance(a, GeopackageAsset)][0]
+    stac_item["assets"]["GeoPackage_file"] = gpkg_asset.to_stac().to_dict()
+    out_obj = json.dumps(stac_item).encode()
+    save_bytes_s3(out_obj, stac_path)
+    return {"in_path": in_prefix, "crs": crs, "thumb_path": None, "stac_path": stac_path}
+
+
 if __name__ == "__main__":
     ras_dir = sys.argv[1]
     crs = sys.argv[2]
@@ -349,3 +376,4 @@ if __name__ == "__main__":
     out_dir = ras_dir.replace("source_models", "stac_items")
     # process_in_place_s3(ras_dir, crs, out_dir)
     ras_to_stac(ras_dir, crs)
+    # append_geopackage(ras_dir, crs, out_dir)
