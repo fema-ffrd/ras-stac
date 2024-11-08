@@ -356,12 +356,21 @@ def append_geopackage(in_prefix: str, crs: str, out_prefix: str):
     logging.info("Discovering model contents")
     converter = from_directory(in_prefix, crs)
     converter.check_for_mip()
+
+    stac_path = out_prefix + f"{converter.idx}.json"
+    stac_item = json.loads(str_from_s3(stac_path))
+    if "proj:wkt2" not in stac_item["properties"]:  # no CRS
+        logging.info("Skipping {in_prefix} for lack of CRS")
+        return {"in_path": in_prefix, "crs": crs, "thumb_path": None, "stac_path": stac_path}
+    elif not stac_item["properties"]["has_1d"]:
+        logging.info("Skipping {in_prefix} for lack of 1D")
+        return {"in_path": in_prefix, "crs": crs, "thumb_path": None, "stac_path": stac_path}
+
     gpkg_path = out_prefix + f"{converter.idx}.gpkg"
     logging.info(f"Generating geopackage at {gpkg_path}")
     converter.export_gpkg(gpkg_path)
-    stac_path = out_prefix + f"{converter.idx}.json"
+
     logging.info(f"Updating STAC item at {stac_path}")
-    stac_item = json.loads(str_from_s3(stac_path))
     gpkg_asset = [a for a in converter.assets if isinstance(a, GeopackageAsset)][0]
     stac_item["assets"]["GeoPackage_file"] = gpkg_asset.to_stac().to_dict()
     out_obj = json.dumps(stac_item).encode()
