@@ -206,7 +206,7 @@ def update_stac_item(stac, collection, client):
         if candidate_hash_set == api_hash_set:
             searching = False
             client.update_item(collection.id, stac["id"], stac)
-            logging.info(f"updated STAC item {stac["id"]} in collection {collection.id}")
+            logging.info(f"updated STAC item {stac['id']} in collection {collection.id}")
             continue
 
         ind += 1
