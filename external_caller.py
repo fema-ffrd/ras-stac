@@ -10,6 +10,7 @@ from ras_stac.ras1d.utils.s3_utils import str_from_s3
 
 warnings.filterwarnings("ignore")
 
+
 from papipyplug import parse_input, plugin_logger, print_results
 
 PLUGIN_PARAMS = {"required": ["in_prefix", "crs", "out_prefix"], "optional": []}
