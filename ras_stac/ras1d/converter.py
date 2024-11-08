@@ -12,7 +12,6 @@ from pystac.extensions.storage import StorageExtension
 from pystac.item import Item
 from shapely import to_geojson
 
-from ras_stac.ras1d.update_stac_api import post_item
 from ras_stac.ras1d.utils.classes import (
     GenericAsset,
     GeometryAsset,
@@ -375,8 +374,7 @@ def append_geopackage(in_prefix: str, crs: str, out_prefix: str):
     stac_item["assets"]["GeoPackage_file"] = gpkg_asset.to_stac().to_dict()
     out_obj = json.dumps(stac_item).encode()
     save_bytes_s3(out_obj, stac_path)
-    post_item(stac_item)
-    return {"in_path": in_prefix, "crs": crs, "thumb_path": None, "stac_path": stac_path}
+    return {"in_path": in_prefix, "crs": crs, "thumb_path": None, "stac_path": stac_path, "gpkg_path": gpkg_path}
 
 
 if __name__ == "__main__":
