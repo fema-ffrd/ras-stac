@@ -26,18 +26,18 @@ dev = ["pre-commit", "ruff", "pytest", "moto", "jsonschema"]
 [project.urls]
 repository = "https://github.com/fema-ffrd/ras-stac"
 
-[project.scripts]
-ras_stac = "cli:main"
+#[project.scripts]
+#ras_stac = "cli:main"
 
-[tool.pytest.ini_options]
-pythonpath = "ras_stac"
-testpaths = "tests"
+#[tool.pytest.ini_options]
+#pythonpath = "ras_stac"
+#testpaths = "tests"
 
-[tool.ruff.lint]
-select = ["D"]
+#[tool.ruff.lint]
+#select = ["D"]
 
-[tool.ruff.lint.pydocstyle]
-convention = "numpy"
+#[tool.ruff.lint.pydocstyle]
+#convention = "numpy"
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D"]
+#[tool.ruff.lint.per-file-ignores]
+#"tests/**" = ["D"]
