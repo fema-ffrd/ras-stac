@@ -10,6 +10,7 @@ from utils.class_utils import (
     add_assets_to_item,
     cell_area_to_distance,
     ras_perimeter,
+    get_stac_plan_attrs,
 )
 from pathlib import Path
 
@@ -34,6 +35,8 @@ class RASItem(Item):
         self.simplify = simplify
         self.s3_resource = s3_resource
         self.crs = crs
+
+        self.asset_list.append(hdf_path)
 
         self.ras_hdf = self._load_hdf_file(hdf_path)
         self.stac_properties = self._prepare_stac_properties()
@@ -69,10 +72,19 @@ class RASItem(Item):
         """
         Retrieve geometry attributes from the HDF file and raise an error if none found.
         """
-        stac_properties = get_stac_geom_attrs(self.ras_hdf)
-        if not stac_properties:
-            raise AttributeError(f"Could not find properties for {self.item_id}.")
-        return stac_properties
+        geom_properties = get_stac_geom_attrs(self.ras_hdf)
+        if not geom_properties:
+            raise AttributeError(f"Could not find geom properties for {self.item_id}.")
+        return geom_properties
+
+    def _get_stac_plan_attrs(self) -> Dict:
+        """
+        Retrieve geometry attributes from the HDF file and raise an error if none found.
+        """
+        plan_properties = get_stac_plan_attrs(self.ras_hdf)
+        if not plan_properties:
+            raise AttributeError(f"Could not find plan properties for {self.item_id}.")
+        return plan_properties
 
     def _remove_unwanted_properties(self, stac_properties: Dict) -> Dict:
         """
@@ -108,6 +120,10 @@ class RASItem(Item):
         Retrieve and process STAC properties from the HDF file.
         """
         stac_properties = self._get_stac_geom_attrs()
+
+        if self.file_type == "plan":
+            stac_properties.update(self._get_stac_plan_attrs())
+
         stac_properties = self._remove_unwanted_properties(stac_properties)
         stac_properties = self._add_custom_properties(stac_properties)
         stac_properties = self._apply_2d_cell_transformations(stac_properties)
@@ -140,10 +156,11 @@ class RASItem(Item):
         return item_datetime
 
 
-hdf_path = "Muncie.g05.hdf"
+geom_hdf_path = "Muncie.g05.hdf"
+plan_hdf_path = "Muncie.p04.hdf"
 
 item_id = "test_item"
 asset_list = ["s3://test_bucket/test_prefix/test_model.f03"]
-ras_item = RASItem(hdf_path=hdf_path, item_id=item_id, asset_list=asset_list)
+ras_item = RASItem(hdf_path=geom_hdf_path, item_id=item_id, asset_list=asset_list)
 
 # TODO: remove 'STAC' from naming conventions

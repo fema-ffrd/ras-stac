@@ -115,26 +115,33 @@ def prep_stac_attrs(attrs: dict, prefix: str = None) -> dict:
 def add_assets_to_item(item, asset_list: list, s3_resource: None):
     """Add assets to a STAC item using the asset list and fetches metadata from S3."""
     for asset_file in asset_list:
-        bucket, asset_key = split_s3_path(asset_file)
         logging.info(f"Adding asset {asset_file} to item")
 
-        if s3_resource is not None:
-            assets_bucket = s3_resource.Bucket(bucket)
-            obj = assets_bucket.Object(asset_key)
-            try:
-                metadata = get_basic_object_metadata(obj)
-            except Exception as e:
-                logging.error(f"unable to fetch metadata for {obj}: {e}")
+        if "s3://" in asset_file:
+            bucket, asset_key = split_s3_path(asset_file)
+            asset_href = s3_path_public_url_converter(asset_file)
+
+            if s3_resource is not None:
+                assets_bucket = s3_resource.Bucket(bucket)
+                obj = assets_bucket.Object(asset_key)
+                try:
+                    metadata = get_basic_object_metadata(obj)
+                except Exception as e:
+                    logging.error(f"unable to fetch metadata for {obj}: {e}")
+                    metadata = {}
+            else:
+                logging.warning(
+                    f"No S3 resource provided, unable to fetch metadata for asset file: {asset_file}"
+                )
                 metadata = {}
+
         else:
-            logging.warning(
-                f"No S3 resource provided, unable to fetch metadata for asset file: {asset_file}"
-            )
+            asset_href = asset_file
             metadata = {}
 
         asset_info = get_ras_asset_info(asset_file)
         asset = pystac.Asset(
-            s3_path_public_url_converter(asset_file),
+            href=asset_href,
             extra_fields=metadata,
             roles=asset_info["roles"],
             description=asset_info["description"],
@@ -393,13 +400,8 @@ def ras_perimeter(ras_geom: RasGeomHdf, simplify: float = None, crs: str = "EPSG
     return perimeter_polygon
 
 
-def get_plan_attrs(ras_plan: RasPlanHdf, include_results: bool = False) -> dict:
+def get_plan_attrs(ras_plan: RasPlanHdf) -> dict:
     """Retrieve the attributes of a plan from a HEC-RAS plan HDF file, converting them to STAC format.
-
-    Parameters
-    ----------
-        include_results (bool, optional): Whether to include the results attributes in the returned dictionary.
-            Defaults to False.
 
     Returns
     -------
@@ -439,8 +441,6 @@ def get_plan_attrs(ras_plan: RasPlanHdf, include_results: bool = False) -> dict:
     else:
         logging.warning("No meteorology precipitation attributes found.")
 
-    if include_results:
-        stac_plan_attrs.update(ras_plan.get_plan_results_attrs())
     return stac_plan_attrs
 
 
@@ -501,7 +501,7 @@ def get_plan_results_attrs(ras_plan: RasPlanHdf) -> dict:
     return results_attrs
 
 
-def get_stac_plan_attrs(ras_plan: RasPlanHdf, simulation: str) -> dict:
+def get_stac_plan_attrs(ras_plan: RasPlanHdf) -> dict:
     """Retrieve the metadata of a simulation from a HEC-RAS plan HDF file.
 
     Parameters
@@ -513,13 +513,13 @@ def get_stac_plan_attrs(ras_plan: RasPlanHdf, simulation: str) -> dict:
         dict: A dictionary with the metadata of the simulation.
 
     The function performs the following steps:
-    1. Initializes a metadata dictionary with the key "ras:simulation" and the value being the provided simulation.
+    1. Initializes a metadata dictionary.
     2. Tries to get the plan attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
     3. Tries to get the plan results attributes from the RasPlanHdf object and update the `metadata` dictionary with them.
     4. Returns the `metadata` dictionary.
 
     """
-    metadata = {"ras:simulation": simulation}
+    metadata = {}
 
     try:
         plan_attrs = get_plan_attrs(ras_plan)
