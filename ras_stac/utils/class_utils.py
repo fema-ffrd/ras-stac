@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
 import pystac
 from pathlib import Path
@@ -534,3 +535,25 @@ def get_stac_plan_attrs(ras_plan: RasPlanHdf) -> dict:
         return logging.error(f"unable to extract results_attrs from plan: {e}")
 
     return metadata
+
+
+def properties_to_isoformat(properties: dict):
+    """Convert datetime objects in properties to isoformat.
+
+    Parameters
+    ----------
+        properties (dict): Properties dictionary with datetime object values
+
+    Returns
+    -------
+        properties (dict): Properties dictionary with datetime objects converted to isoformat
+
+    """
+    for k, v in properties.items():
+        if isinstance(v, list):
+            properties[k] = [
+                item.isoformat() if isinstance(item, datetime) else item for item in v
+            ]
+        elif isinstance(v, datetime):
+            properties[k] = v.isoformat()
+    return properties
