@@ -267,3 +267,10 @@ def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):
         except KeyError:
             break
     return keys
+
+
+def save_bytes_s3(byte_obj: bytes, s3_key: str) -> None:
+    """Save bytes to S3."""
+    _, s3_client, _ = init_s3_resources()
+    bucket, key = split_s3_path(s3_key)
+    s3_client.put_object(Body=byte_obj, Bucket=bucket, Key=key)
