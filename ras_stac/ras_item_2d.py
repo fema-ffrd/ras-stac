@@ -1,22 +1,23 @@
 import json
 from datetime import datetime, timezone
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 from pystac import Item
 import shapely
 from shapely.geometry import Polygon
-from rashdf import RasGeomHdf
+from rashdf import RasGeomHdf, RasPlanHdf
 from utils.class_utils import (
     get_stac_geom_attrs,
     add_assets_to_item,
     cell_area_to_distance,
     ras_perimeter,
 )
+from pathlib import Path
 
 
 class RASItem(Item):
     def __init__(
         self,
-        ras_geom_hdf: RasGeomHdf,  # Probably change it so it takes an hdf file directly and handles the RasGeomHdf/RasPlanHDF object internally. Also make it so it can take either a plan or geom hdf.
+        hdf_path: str,
         item_id: str,
         asset_list: Optional[List] = None,
         item_props_to_remove: Optional[List] = None,
@@ -25,7 +26,7 @@ class RASItem(Item):
         s3_resource=None,
         crs: str = "EPSG:4326",
     ):
-        self.ras_geom_hdf = ras_geom_hdf
+        self.hdf_path = hdf_path
         self.item_id = item_id
         self.asset_list = asset_list
         self.item_props_to_remove = item_props_to_remove or []
@@ -34,6 +35,7 @@ class RASItem(Item):
         self.s3_resource = s3_resource
         self.crs = crs
 
+        self.ras_hdf = self._load_hdf_file(hdf_path)
         self.stac_properties = self._prepare_stac_properties()
         perimeter_polygon = self._create_perimeter(simplify, crs)
 
@@ -49,11 +51,25 @@ class RASItem(Item):
         if self.asset_list:
             add_assets_to_item(self, self.asset_list, self.s3_resource)
 
+    def _load_hdf_file(self, hdf_path: str) -> Union[RasGeomHdf, RasPlanHdf]:
+        """
+        Determine if the HDF file is geometry or plan based on its extension and initialize the respective rashdf class.
+        """
+        file_extension = Path(hdf_path).suffixes
+        if ".g" in file_extension[0]:
+            self.file_type = "geometry"
+            return RasGeomHdf(hdf_path)
+        elif ".p" in file_extension[0]:
+            self.file_type = "plan"
+            return RasPlanHdf(hdf_path)
+        else:
+            raise ValueError(f"Unknown HDF file type for path: {hdf_path}")
+
     def _get_stac_geom_attrs(self) -> Dict:
         """
         Retrieve geometry attributes from the HDF file and raise an error if none found.
         """
-        stac_properties = get_stac_geom_attrs(self.ras_geom_hdf)
+        stac_properties = get_stac_geom_attrs(self.ras_hdf)
         if not stac_properties:
             raise AttributeError(f"Could not find properties for {self.item_id}.")
         return stac_properties
@@ -102,7 +118,7 @@ class RASItem(Item):
         """
         Retrieves and simplifies the perimeter polygon.
         """
-        perimeter = ras_perimeter(self.ras_geom_hdf, simplify, crs)
+        perimeter = ras_perimeter(self.ras_hdf, simplify, crs)
         return perimeter
 
     def _determine_item_time(self):
@@ -125,11 +141,9 @@ class RASItem(Item):
 
 
 hdf_path = "Muncie.g05.hdf"
-ras_geom_hdf = RasGeomHdf(hdf_path)
 
 item_id = "test_item"
 asset_list = ["s3://test_bucket/test_prefix/test_model.f03"]
-ras_item = RASItem(ras_geom_hdf=ras_geom_hdf, item_id=item_id, asset_list=asset_list)
+ras_item = RASItem(hdf_path=hdf_path, item_id=item_id, asset_list=asset_list)
 
 # TODO: remove 'STAC' from naming conventions
-# TODO: Change class to take in a plan hdf file and handle the RasGeomHdf/RasPlanHDF object internally
