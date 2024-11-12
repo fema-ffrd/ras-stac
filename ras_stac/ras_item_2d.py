@@ -1,10 +1,16 @@
 import json
+import io
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Union
 from pystac import Item
 import pystac
+from pystac.extensions.projection import ProjectionExtension
+from pystac.extensions.storage import StorageExtension
+from pyproj import CRS
+from shapely.geometry import mapping
 import shapely
 from shapely.geometry import Polygon
+from plot_utils import create_model_thumbnail, get_gage_data, create_usgs_gage_links
 from rashdf import RasGeomHdf, RasPlanHdf
 from utils.s3_utils import save_bytes_s3
 from utils.class_utils import (
@@ -17,6 +23,9 @@ from utils.class_utils import (
 )
 from pathlib import Path
 import re
+from utils.logger import setup_logging
+
+setup_logging()
 
 
 class RASItem(Item):
@@ -25,25 +34,29 @@ class RASItem(Item):
         hdf_path: str,
         item_id: str,
         asset_list: Optional[List] = None,
-        item_props_to_remove: Optional[List] = None,
-        item_props_to_add: Optional[Dict] = None,
+        item_props_to_remove: Optional[List] = [],
+        item_props_to_add: Optional[Dict] = {},
+        extensions: Optional[List] = None,
         item_href: Optional[str] = None,
-        item_links: Optional[List[Dict]] = None,
-        extra_fields: Optional[Dict] = None,
+        item_links: Optional[List[Dict]] = [],
+        extra_fields: Optional[Dict] = {},
         simplify: Optional[float] = None,
         s3_resource=None,
+        thumbnail_path: Optional[str] = None,
         crs: str = "EPSG:4326",
     ):
         self.hdf_path = hdf_path
         self.item_id = item_id
         self.asset_list = asset_list
-        self.item_props_to_remove = item_props_to_remove or []
-        self.item_props_to_add = item_props_to_add or {}
-        self.item_links = item_links or []
+        self.item_props_to_remove = item_props_to_remove
+        self.item_props_to_add = item_props_to_add
+        self.extensions = extensions
+        self.item_links = item_links
         self.href = item_href
-        self.extra_fields = extra_fields or {}
+        self.extra_fields = extra_fields
         self.simplify = simplify
         self.s3_resource = s3_resource
+        self.thumbnail_path = thumbnail_path
         self.crs = crs
 
         self.asset_list.append(hdf_path)
@@ -60,9 +73,25 @@ class RASItem(Item):
             bbox=perimeter_polygon.bounds,
             datetime=item_datetime,
             properties=properties_to_isoformat(self.properties),
+            stac_extensions=self.extensions,
             href=self.href,
             extra_fields=self.extra_fields,
         )
+
+        if self.crs:
+            prj_ext = ProjectionExtension.ext(self, add_if_missing=True)
+            og_crs = CRS(self.crs)
+            prj_ext.epsg = og_crs.to_epsg()
+            prj_ext.wkt2 = og_crs.to_wkt()
+            prj_ext.bbox = list(perimeter_polygon.bounds)
+            prj_ext.centroid = mapping(perimeter_polygon.centroid)
+
+        stor_ext = StorageExtension.ext(self, add_if_missing=True)
+        stor_ext.apply(platform="AWS", region="us-east-1")
+
+        if self.thumbnail_path:
+            self.export_thumbnail(self.thumbnail_path)
+
         if self.asset_list:
             add_assets_to_item(self, self.asset_list, self.s3_resource)
 
@@ -82,6 +111,26 @@ class RASItem(Item):
             return RasPlanHdf(hdf_path)
         else:
             raise ValueError(f"Unknown HDF file type for path: {hdf_path}")
+
+    def export_thumbnail(self, thumb_path: str) -> None:
+        """Generate and save item thumbnail."""
+        gages_df = get_gage_data(self.ras_hdf, crs=self.crs)
+        thumb = create_model_thumbnail(
+            self.ras_hdf, gages_df=gages_df, title=self.item_id, crs=self.crs
+        )
+
+        if thumb_path.startswith("s3://"):
+            img_data = io.BytesIO()
+            thumb.savefig(img_data, format="png", bbox_inches="tight")
+            img_data.seek(0)
+            save_bytes_s3(img_data, thumb_path)
+
+        else:
+            thumb.savefig(thumb_path, dpi=80, bbox_inches="tight")
+
+        self.asset_list.append(thumb_path)
+        if gages_df:
+            self.item_links.extend(create_usgs_gage_links(gages_df))
 
     def _get_geom_attrs(self) -> Dict:
         """
@@ -105,6 +154,9 @@ class RASItem(Item):
         """
         Remove properties specified in item_props_to_remove.
         """
+        # Remove projection, to be handled by the ProjectionExtension
+        if "projection" not in self.item_props_to_remove:
+            self.item_props_to_remove.append("projection")
         for prop in self.item_props_to_remove:
             properties.pop(prop, None)
         return properties
@@ -194,15 +246,16 @@ class RASItem(Item):
                 f.write(out_obj)
 
 
-geom_hdf_path = "Muncie.g05.hdf"
-plan_hdf_path = "Muncie.p04.hdf"
+geom_hdf_path = "ElkMiddle.g01.hdf"
+plan_hdf_path = "ElkMiddle.p01.hdf"
 
-item_id = "test_item"
+item_id = "ElkMiddle"
 test_props = {"test_prop": "test_value"}
 props_to_remove = ["2d_flow_areas:property_tables_last_computed"]
 asset_list = ["s3://test_bucket/test_prefix/test_model.f03"]
 test_links = [{"href": "https://example.com", "rel": "test", "title": "test_title"}]
 test_href = "https://example.com/item.json"
+
 ras_item = RASItem(
     hdf_path=plan_hdf_path,
     item_id=item_id,
@@ -210,4 +263,5 @@ ras_item = RASItem(
     item_href=test_href,
     item_props_to_add=test_props,
     item_props_to_remove=props_to_remove,
+    thumbnail_path="ElkMiddle.png",
 )

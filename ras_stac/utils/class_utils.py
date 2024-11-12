@@ -410,14 +410,14 @@ def get_plan_attrs(ras_plan: RasPlanHdf) -> dict:
 
     """
     stac_plan_attrs = ras_plan.get_root_attrs()
-    if stac_plan_attrs is not None:
+    if stac_plan_attrs:
         stac_plan_attrs = prep_stac_attrs(stac_plan_attrs)
     else:
         stac_plan_attrs = {}
         logging.warning("No root attributes found.")
 
     plan_info_attrs = ras_plan.get_plan_info_attrs()
-    if plan_info_attrs is not None:
+    if plan_info_attrs:
         plan_info_stac_attrs = prep_stac_attrs(
             plan_info_attrs, prefix="Plan Information"
         )
@@ -426,7 +426,7 @@ def get_plan_attrs(ras_plan: RasPlanHdf) -> dict:
         logging.warning("No plan information attributes found.")
 
     plan_params_attrs = ras_plan.get_plan_param_attrs()
-    if plan_params_attrs is not None:
+    if plan_params_attrs:
         plan_params_stac_attrs = prep_stac_attrs(
             plan_params_attrs, prefix="Plan Parameters"
         )
@@ -435,7 +435,7 @@ def get_plan_attrs(ras_plan: RasPlanHdf) -> dict:
         logging.warning("No plan parameters attributes found.")
 
     precip_attrs = ras_plan.get_meteorology_precip_attrs()
-    if precip_attrs is not None:
+    if precip_attrs:
         precip_stac_attrs = prep_stac_attrs(precip_attrs, prefix="Meteorology")
         precip_stac_attrs.pop("meteorology:projection", None)
         stac_plan_attrs.update(precip_stac_attrs)
@@ -456,7 +456,7 @@ def get_plan_results_attrs(ras_plan: RasPlanHdf) -> dict:
     results_attrs = {}
 
     unsteady_results_attrs = ras_plan.get_results_unsteady_attrs()
-    if unsteady_results_attrs is not None:
+    if unsteady_results_attrs:
         unsteady_results_stac_attrs = prep_stac_attrs(
             unsteady_results_attrs, prefix="Unsteady Results"
         )
@@ -465,7 +465,7 @@ def get_plan_results_attrs(ras_plan: RasPlanHdf) -> dict:
         logging.warning("No unsteady results attributes found.")
 
     summary_attrs = ras_plan.get_results_unsteady_summary_attrs()
-    if summary_attrs is not None:
+    if summary_attrs:
         summary_stac_attrs = prep_stac_attrs(summary_attrs, prefix="Results Summary")
         computation_time_total = str(
             summary_stac_attrs.get("results_summary:computation_time_total")
@@ -479,7 +479,7 @@ def get_plan_results_attrs(ras_plan: RasPlanHdf) -> dict:
                 "results_summary:solution"
             ),
         }
-        if computation_time_total is not None:
+        if computation_time_total:
             computation_time_total_minutes = (
                 parse_duration(computation_time_total).total_seconds() / 60
             )
