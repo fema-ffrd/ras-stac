@@ -17,9 +17,6 @@ class GenericAsset(Asset):
         with open(href) as f:
             self.file_str = f.read()
 
-    def __str__(self):
-        return self.name
-
     def name_from_suffix(self, suffix: str) -> str:
         return self.stem + "." + suffix
 
@@ -69,30 +66,52 @@ class ProjectAsset(GenericAsset):
 
 class PlanAsset(GenericAsset):
 
+    def __init__(self, href: str, *args, **kwargs):
+        super().__init__(href, *args, **kwargs)
+        self.extra_fields = {"short_id": self.short_id}
+
+    @property
+    def ras1d_title(self) -> str:
+        return search_contents(self.file_str.splitlines(), "Plan Title")
+
     @property
     def primary_geometry(self) -> str:
         suffix = search_contents(self.file_str.splitlines(), "Geom File", expect_one=True)
         return self.name_from_suffix(suffix)
 
+    @property
+    def short_id(self) -> str:
+        return search_contents(self.file_str.splitlines(), "Short Identifier")
+
 
 class GeometryAsset(GenericAsset):
 
-    def __init__(self, href: str, *args, **kwargs):
+    def __init__(self, href: str = "null", *args, **kwargs):
         super().__init__(href, *args, **kwargs)
 
-        geom_fields = [
-            "rivers",
-            "reaches",
-            "ras1d:cross_sections",
-            "ras1d:culverts",
-            "ras1d:bridges",
-            "ras1d:multiple_openings",
-            "ras1d:inline_structures",
-            "ras1d:lateral_structures",
-            "ras1d:storage_areas",
-            "ras1d:2d_flow_areas",
-            "ras1d:sa_connections",
-        ]
-        self.extra_fields = {f: None for f in geom_fields}
+        self.extra_fields = {
+            "ras1d:rivers": 0,
+            "ras1d:reaches": 0,
+            "ras1d:cross_sections": {
+                "total": 0,
+                "user_input_xss": 0,
+                "interpolated": 0,
+            },
+            "ras1d:culverts": 0,
+            "ras1d:bridges": 0,
+            "ras1d:multiple_openings": 0,
+            "ras1d:inline_structures": 0,
+            "ras1d:lateral_structures": 0,
+            "ras1d:storage_areas": 0,
+            "ras1d:2d_flow_areas": {
+                "2d_flow_areas": 0,
+                "total_cells": 0,
+            },
+            "ras1d:sa_connections": 0,
+        }
         self.geometry = us_bounds
         self.bbox = [0, 0, 0, 0]
+
+    @property
+    def ras1d_title(self) -> str:
+        return search_contents(self.file_str.splitlines(), "Geom Title")
