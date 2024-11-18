@@ -212,18 +212,11 @@
           "properties": {
             "title": {"type": "string"},
             "ras1d:project_title": {"type": "string"},
-            "file": {
+            "href": {
               "type": "string",
-              "pattern": ".*\\.[pP]\\d\\d$"
+              "pattern": ".*\\.prj$"
             },
-            "geometry": {"$ref": "#/definitions/fields/properties/ras1d:geometry"},
-            "flow": {
-              "oneOf": [
-                {"$ref": "#/definitions/fields/properties/ras1d:steady_flow"},
-                {"$ref": "#/definitions/fields/properties/ras1d:quasi_unsteady_flow"},
-                {"$ref": "#/definitions/fields/properties/ras1d:unsteady_flow"}
-              ]
-            }
+            "ras1d:plan_current": {"type": "string"}
           }
         },
         "ras1d:plan": {
@@ -239,18 +232,12 @@
             "title": {"type": "string"},
             "ras1d:short_id": {"type": "string"},
             "ras1d:plan_title": {"type": "string"},
-            "file": {
+            "href": {
               "type": "string",
               "pattern": ".*\\.[pP]\\d\\d$"
             },
-            "geometry": {"$ref": "#/definitions/fields/properties/ras1d:geometry"},
-            "flow": {
-              "oneOf": [
-                {"$ref": "#/definitions/fields/properties/ras1d:steady_flow"},
-                {"$ref": "#/definitions/fields/properties/ras1d:quasi_unsteady_flow"},
-                {"$ref": "#/definitions/fields/properties/ras1d:unsteady_flow"}
-              ]
-            }
+            "ras1d:geometry": {"type": "string"},
+            "ras1d:flow": {"type": "string"}
           }
         },
         "ras1d:geometry": {
@@ -264,7 +251,7 @@
           "properties": {
             "title": {"type": "string"},
             "ras1d:geom_title": {"type": "string"},
-            "file": {
+            "href": {
               "type": "string",
               "pattern": ".*\\.[gG]\\d\\d$"
             },
@@ -292,7 +279,7 @@
           "properties": {
             "title": {"type": "string"},
             "ras1d:flow_title": {"type": "string"},
-            "file": {
+            "href": {
               "type": "string",
               "pattern": ".*\\.[fF]\\d\\d$"
             },
@@ -310,7 +297,7 @@
           "properties": {
             "title": {"type": "string"},
             "ras1d:flow_title": {"type": "string"},
-            "file": {
+            "href": {
               "type": "string",
               "pattern": ".*\\.[qQ]\\d\\d$"
             }
@@ -325,7 +312,7 @@
             "href"
           ],
           "properties": {
-            "title": {"type": "string"},
+            "href": {"type": "string"},
             "ras1d:flow_title": {"type": "string"},
             "file": {
               "type": "string",
