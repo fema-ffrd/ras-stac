@@ -1,19 +1,19 @@
 import json
 import logging
 import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Tuple
+
 import pystac
 import rasterio
 import rasterio.warp
-
-from datetime import datetime, timezone
 from mypy_boto3_s3.service_resource import Object
-from pathlib import Path
 from rasterio.session import AWSSession
 from shapely import to_geojson
 from shapely.geometry import Polygon
-from typing import Tuple
 
-from .s3_utils import s3_key_public_url_converter, get_basic_object_metadata
+from ...common.s3_utils import get_basic_object_metadata, s3_key_public_url_converter
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -35,9 +35,7 @@ def get_raster_bounds(
         coordinate reference system. The bounds are returned as a tuple of four floats: (west, south, east, north).
     """
     if minio_mode:
-        with rasterio.open(
-            s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")
-        ) as src:
+        with rasterio.open(s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")) as src:
             bounds = src.bounds
             crs = src.crs
             bounds_4326 = rasterio.warp.transform_bounds(crs, "EPSG:4326", *bounds)
@@ -52,9 +50,7 @@ def get_raster_bounds(
                 return bounds_4326
 
 
-def get_raster_metadata(
-    s3_key: str, aws_session: AWSSession, minio_mode: bool = False
-) -> dict:
+def get_raster_metadata(s3_key: str, aws_session: AWSSession, minio_mode: bool = False) -> dict:
     """
     This function retrieves the metadata of a raster file stored in an AWS S3 bucket.
 
@@ -67,9 +63,7 @@ def get_raster_metadata(
         where the keys are the names of the metadata items and the values are the values of the metadata items.
     """
     if minio_mode:
-        with rasterio.open(
-            s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")
-        ) as src:
+        with rasterio.open(s3_key.replace("s3://", f"/vsicurl/{os.environ.get('MINIO_S3_ENDPOINT')}/")) as src:
             return src.tags(1)
     else:
         with rasterio.Env(aws_session):

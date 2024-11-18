@@ -35,10 +35,7 @@
               ]
             },
             "assets": {
-              "type": "object",
-              "additionalProperties": {
-                "$ref": "#/definitions/assets"
-              }
+              "$ref": "#/definitions/assets"
             }
           }
         }
@@ -74,13 +71,23 @@
         "stac_extensions": {
           "type": "array",
           "contains": {
-            "const": "https://example.com/extensions/hec-ras-1d/v1.0.0/schema.json"
+            "const": "https://github.com/fema-ffrd/ras-stac/extensions/schema.json"
           }
         }
       }
     },
     "assets": {
-      "type": "object"
+      "type": "object",
+      "patternProperties": {
+        ".*\\.[pP]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:plan"},
+        ".*\\.[gG]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:geometry"},
+        ".*\\.[fF]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:steady_flow"},
+        ".*\\.[qQ]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:quasi_unsteady_flow"},
+        ".*\\.[uU]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:unsteady_flow"},
+        ".*": {"$ref": "#/definitions/fields/properties/generic_asset"}
+      },
+      "minProperties": 1,
+      "additionalProperties": false
     },
     "fields": {
       "type": "object",
@@ -100,9 +107,10 @@
           "pattern": "(SI|English)"
         },
         "ras1d:plan_current": {
+          "$comment": "would have used current_plan, but RAS summary page says plan (current)",
           "type": "string",
-          "description": "Suffix of current plan of the HEC-RAS project, as defined in the .prj file.",
-          "pattern": "^[pP]\\d\\d$"
+          "description": "Name of current plan of the HEC-RAS project, as defined in the .prj file.",
+          "pattern": "^.*[pP]\\d\\d$"
         },
         "ras1d:plan_files": {
           "type": "array",
@@ -198,12 +206,15 @@
           "required": [
             "title",
             "short_id",
-            "file"
+            "href"
           ],
           "properties": {
             "title": {"type": "string"},
             "short_id": {"type": "string"},
-            "file": {"type": "string"},
+            "file": {
+              "type": "string",
+              "pattern": ".*\\.[pP]\\d\\d$"
+            },
             "geometry": {"$ref": "#/definitions/fields/properties/ras1d:geometry"},
             "flow": {
               "oneOf": [
@@ -219,7 +230,7 @@
           "description": "A HEC-RAS geometry file.",
           "required": [
             "title",
-            "file"
+            "href"
           ],
           "properties": {
             "title": {"type": "string"},
@@ -245,7 +256,7 @@
           "description": "A HEC-RAS steady flow file.",
           "required": [
             "title",
-            "file"
+            "href"
           ],
           "properties": {
             "title": {"type": "string"},
@@ -261,7 +272,7 @@
           "description": "A HEC-RAS quasi-unsteady flow file.",
           "required": [
             "title",
-            "file"
+            "href"
           ],
           "properties": {
             "title": {"type": "string"},
@@ -276,7 +287,7 @@
           "description": "A HEC-RAS unsteady flow file.",
           "required": [
             "title",
-            "file"
+            "href"
           ],
           "properties": {
             "title": {"type": "string"},
@@ -285,9 +296,24 @@
               "pattern": ".*\\.[uU]\\d\\d$"
             }
           }
+        },
+        "generic_asset": {
+          "type": "object",
+          "description": "A generic (non-RAS) asset.",
+          "properties": {
+            "roles": {
+              "type": "array",
+              "not": {
+                "contains": {
+                  "const": "ras-file"
+                }
+              }
+            }
+          }
+
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     }
   }
 }

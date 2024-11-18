@@ -253,3 +253,12 @@ def list_keys_regex(s3_client, bucket, prefix_includes, suffix=""):
         except KeyError:
             break
     return keys
+
+
+def get_metadata(key: str) -> str:
+    """Head object and get metadata."""
+    _, s3_client, s3_resource = init_s3_resources()
+    bucket, key = split_s3_key(key)
+    bucket = s3_resource.Bucket(bucket)
+    key_obj = bucket.Object(key)
+    return get_basic_object_metadata(key_obj)

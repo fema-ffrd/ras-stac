@@ -1,0 +1,47 @@
+{
+  "type": "Feature",
+  "stac_version": "1.0.0",
+  "stac_extensions": [
+    "https://example.com/extensions/hec-ras-1d/v1.0.0/schema.json"
+  ],
+  "assets": {
+    "valid_geometry.g01": {
+      "file": "testgeom.g01",
+      "title": "valid_geom",
+      "roles": ["ras-file"]
+    },
+    "invalid_geometry.g01": {
+      "title": "intestgeom",
+      "roles": ["ras-file"]
+    },
+    "general_file": {
+      "href": "test",
+      "roles": ["ras-file"]
+    }
+  },
+  "properties": {
+    "ras1d:project": "test.prj",
+    "ras1d:project_title": "test",
+    "ras1d:plan_current": "p01",
+    "ras1d:plan_files": [
+      {
+        "title": "plan",
+        "short_id": "pp1",
+        "file": "test.p01",
+        "geometry": {
+          "title": "geom",
+          "file": "test.g01"
+        }
+      },
+      {
+        "title": "plan2",
+        "short_id": "pp2",
+        "file": "test.p02",
+        "geometry": {
+          "title": "geom",
+          "file": "test.g01"
+        }
+      }
+    ]
+  }
+}

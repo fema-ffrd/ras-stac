@@ -2,242 +2,205 @@ import re
 from pathlib import Path
 
 import pystac
+from pystac import Asset
+from pystac.extensions.storage import StorageExtension
 
+from ras_stac.common.fileio import file_location
+from ras_stac.common.s3_utils import get_metadata
 from ras_stac.ras1d.utils.classes import (
     GenericAsset,
     GeometryAsset,
     PlanAsset,
     ProjectAsset,
+    QuasiUnsteadyFlowAsset,
     SteadyFlowAsset,
     UnsteadyFlowAsset,
 )
+from ras_stac.ras1d.utils.ras_utils import is_ras_prj
 
 
-def generate_asset(url: str):
-    """Create an asset class with info from file (factory pattern)."""
-    meta = ras_asset_info(url)
-    if pystac.MediaType.HDF5 in meta["roles"]:
-        base_asset = GenericAsset(url)
-    elif "geometry-file" in meta["roles"]:  # Assign subclass, if necessary
-        base_asset = GeometryAsset(url)
-    elif "steady-flow-file" in meta["roles"]:
-        base_asset = SteadyFlowAsset(url)
-    elif "unsteady-file" in meta["roles"]:
-        base_asset = UnsteadyFlowAsset(url)
-    elif "plan-file" in meta["roles"]:
-        base_asset = PlanAsset(url)
-    elif url.lower().endswith(".prj"):
-        base_asset = ProjectAsset(url)
-        if base_asset.is_ras_prj:
-            meta["roles"].extend(["project-file", "ras-file", pystac.MediaType.TEXT])
-            meta["description"] = (
-                """Project file for ras. Contains current plan files, units, and project description."""
-            )
-        else:
-            meta["roles"].extend(["projection-file", "ras-file", pystac.MediaType.TEXT])
-            meta["description"] = """Projection file."""
-    else:
-        base_asset = GenericAsset(url)
-    base_asset.roles.extend(meta["roles"])
-    base_asset.description = meta["description"]
-    base_asset.name = meta["title"].replace(" ", "_")
-    return base_asset
-
-
-def ras_asset_info(url: str) -> dict:
-    """
-    Generate information about an asset used in a HEC-RAS model.
-
-    Parameters:
-        url (str): The URL of the asset.
-
-    Returns:
-        dict: A dictionary with the roles, the description, and the title of the asset.
-
-    The function performs the following steps:
-    1. Extracts the file extension and the file name from the provided `url`.
-    2. If the file extension is ".hdf", it sets the `ras_extension` to the extension of the file name without the
-      ".hdf" suffix and adds `pystac.MediaType.HDF5` to the roles. Otherwise, it sets the `ras_extension` to the file
-        extension.
-    3. Removes the leading dot from the `ras_extension`.
-    4. Depending on the `ras_extension`, it sets the roles and the description for the asset. The `ras_extension` is
-      expected to match one of the HEC-RAS file types. If it doesn't match any of these patterns, it adds "ras-file" to the roles.
-    5. Returns a dictionary with the roles, the description, and the title of the asset.
-    """
-    file_extension = Path(url).suffix
+def asset_factory(url: str) -> Asset:
+    url = str(url)
+    file_extension = Path(url).suffix.lower()
     full_extension = url.rsplit("/")[-1].split(".", 1)[1]
-    title = Path(url).name
-    description = ""
-    roles = []
 
     if file_extension == ".hdf":
         ras_extension = Path(url.replace(".hdf", "")).suffix
-        roles.append(pystac.MediaType.HDF5)
     else:
         ras_extension = file_extension
-
     ras_extension = ras_extension.lstrip(".")
 
-    if re.match("[Gg][0-9]{2}", ras_extension):
-        roles.extend(["geometry-file", "ras-file"])
-        description = (
-            """The geometry file which contains cross-sectional, hydraulic structures, and modeling approach data."""
-        )
-        if file_extension != ".hdf":
-            roles.extend([pystac.MediaType.TEXT])
-
-    elif re.match("[Pp][0-9]{2}", ras_extension):
-        roles.extend(["plan-file", "ras-file"])
+    if ras_extension == ".prj" and is_ras_prj(url):
+        roles = ["project-file", "ras-file"]
+        description = """The HEC-RAS project file."""
+        asset = ProjectAsset(url, roles=roles, description=description)
+    elif re.match(".[Pp][0-9]{2}", ras_extension):
+        roles = ["plan-file", "ras-file"]
         description = """The plan file which contains a list of associated input files and all simulation options."""
-        if file_extension != ".hdf":
-            roles.extend([pystac.MediaType.TEXT])
+        asset = PlanAsset(url, roles=roles, description=description)
+    elif re.match(".[Gg][0-9]{2}", ras_extension):
+        roles = ["geometry-file", "ras-file"]
+        description = (
+            "The geometry file which contains cross-sectional, hydraulic structures, and modeling approach data."
+        )
+        asset = GeometryAsset(url, roles=roles, description=description)
     elif re.match("[Ff][0-9]{2}", ras_extension):
-        roles.extend(["steady-flow-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["steady-flow-file", "ras-file", pystac.MediaType.TEXT]
         description = """Steady Flow file which contains profile information, flow data, and boundary conditions."""
-
+        asset = SteadyFlowAsset(url, roles=roles, description=description)
     elif re.match("[Qq][0-9]{2}", ras_extension):
-        roles.extend(["quasi-unsteady-flow-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["quasi-unsteady-flow-file", "ras-file", pystac.MediaType.TEXT]
         description = """Quasi-Unsteady Flow file."""
-
+        asset = QuasiUnsteadyFlowAsset(url, roles=roles, description=description)
     elif re.match("[Uu][0-9]{2}", ras_extension):
-        roles.extend(["unsteady-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["unsteady-file", "ras-file", pystac.MediaType.TEXT]
         description = """The unsteady file contains hydrographs amd initial conditions, as well as any flow options."""
-
+        asset = UnsteadyFlowAsset(url, roles=roles, description=description)
     elif re.match("[Rr][0-9]{2}", ras_extension):
-        roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["run-file", "ras-file", pystac.MediaType.TEXT]
         description = """Run file for steady flow analysis which contains all the necessary input data required for the RAS computational engine."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("hyd[0-9]{2}", ras_extension):
-        roles.extend(["computational-level-output-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["computational-level-output-file", "ras-file", pystac.MediaType.TEXT]
         description = """Detailed Computational Level output file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("[Cc][0-9]{2}", ras_extension):
-        roles.extend(["geometric-preprocessor-output-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["geometric-preprocessor-output-file", "ras-file", pystac.MediaType.TEXT]
         description = """Geomatric Pre-Processor output file. Contains the hydraulic properties tables, rating curves, and family of rating curves for each cross-section, bridge, culvert, storage area, inline and lateral structure."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("[Bb][0-9]{2}", ras_extension):
-        roles.extend(["boundary-condition-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["boundary-condition-file", "ras-file", pystac.MediaType.TEXT]
         description = """Boundary Condition file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("bco[0-9]{2}", ras_extension):
-        roles.extend(["unsteady-flow-log-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["unsteady-flow-log-file", "ras-file", pystac.MediaType.TEXT]
         description = """Unsteady Flow Log output file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("[Ss][0-9]{2}", ras_extension):
-        roles.extend(["sediment-data-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["sediment-data-file", "ras-file", pystac.MediaType.TEXT]
         description = """Sediment data file which contains flow data, boundary conditions, and sediment data."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("[Hh][0-9]{2}", ras_extension):
-        roles.extend(["hydraulic-design-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["hydraulic-design-file", "ras-file", pystac.MediaType.TEXT]
         description = """Hydraulic Design data file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("[Ww][0-9]{2}", ras_extension):
-        roles.extend(["water-quality-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["water-quality-file", "ras-file", pystac.MediaType.TEXT]
         description = """Water Quality data file which contains temperature boundary conditions, initial conditions, advection dispersion parameters and meteorological data."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("SedCap[0-9]{2}", ras_extension):
-        roles.extend(["sediment-transport-capacity-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["sediment-transport-capacity-file", "ras-file", pystac.MediaType.TEXT]
         description = """Sediment Transport Capacity data."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("SedXS[0-9]{2}", ras_extension):
-        roles.extend(["xs-output-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["xs-output-file", "ras-file", pystac.MediaType.TEXT]
         description = """Cross section output file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("SedHeadXS[0-9]{2}", ras_extension):
-        roles.extend(["xs-output-header-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["xs-output-header-file", "ras-file", pystac.MediaType.TEXT]
         description = """Header file for the cross section output."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("wqrst[0-9]{2}", ras_extension):
-        roles.extend(["water-quality-restart-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["water-quality-restart-file", "ras-file", pystac.MediaType.TEXT]
         description = """The water quality restart file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "sed":
-        roles.extend(["sediment-output-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["sediment-output-file", "ras-file", pystac.MediaType.TEXT]
         description = """Detailed sediment output file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "blf":
-        roles.extend(["binary-log-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["binary-log-file", "ras-file", pystac.MediaType.TEXT]
         description = """Binary Log file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "dss":
-        roles.extend(["ras-dss", "ras-file"])
+        roles = ["ras-dss", "ras-file"]
         description = """The dss file contains the dss results and other simulation information."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "log":
-        roles.extend(["ras-log", "ras-file", pystac.MediaType.TEXT])
+        roles = ["ras-log", "ras-file", pystac.MediaType.TEXT]
         description = """The log file contains the log information and other simulation information."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "png":
-        roles.extend(["thumbnail", pystac.MediaType.PNG])
+        roles = ["thumbnail", pystac.MediaType.PNG]
         description = """PNG of geometry with OpenStreetMap basemap."""
-        title = "Thumbnail"
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "gpkg":
-        roles.extend(["ras-geometry-gpkg", pystac.MediaType.GEOPACKAGE])
+        roles = ["ras-geometry-gpkg", pystac.MediaType.GEOPACKAGE]
         description = """GeoPackage file with geometry data extracted from .gxx file."""
-        title = "GeoPackage_file"
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "rst":
-        roles.extend(["restart-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["restart-file", "ras-file", pystac.MediaType.TEXT]
         description = """Restart file."""
-        title = "Restart_file"
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "SiamInput":
-        roles.extend(["siam-input-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["siam-input-file", "ras-file", pystac.MediaType.TEXT]
         description = """SIAM Input Data file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "SiamOutput":
-        roles.extend(["siam-output-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["siam-output-file", "ras-file", pystac.MediaType.TEXT]
         description = """SIAM Output Data file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("bco[0-9]{2}", ras_extension):
-        roles.extend(["water-quality-log", "ras-file", pystac.MediaType.TEXT])
+        roles = ["water-quality-log", "ras-file", pystac.MediaType.TEXT]
         description = """Water quality log file."""
-        title = "Water_quality_log_file"
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif ras_extension == "color_scales":
-        roles.extend(["color-scales", "ras-file", pystac.MediaType.TEXT])
+        roles = ["color-scales", "ras-file", pystac.MediaType.TEXT]
         description = """File that contains the water quality color scale."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif full_extension == "comp_msgs.txt":
-        roles.extend(["computational-message-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["computational-message-file", "ras-file", pystac.MediaType.TEXT]
         description = """Computational Message text file which contains the computational messages that pop up in the computation window."""
-        title = "Computational_message_file"
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("[Xx][0-9]{2}", ras_extension):
-        roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["run-file", "ras-file", pystac.MediaType.TEXT]
         description = """Run file for Unsteady Flow."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("[Oo][0-9]{2}", full_extension):
-        roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["output-file", "ras-file", pystac.MediaType.TEXT]
         description = """Output file for ras which contains all of the computed results."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("IC.O[0-9]{2}", full_extension):
-        roles.extend(["initial-conditions-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["initial-conditions-file", "ras-file", pystac.MediaType.TEXT]
         description = """Initial conditions file for unsteady flow plan."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif re.match("[Pp][0-9]{2}.rst", full_extension):
-        roles.extend(["restart-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["restart-file", "ras-file", pystac.MediaType.TEXT]
         description = """Restart file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif full_extension == "rasmap":
-        roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["ras-mapper-file", "ras-file", pystac.MediaType.TEXT]
         description = """Ras Mapper file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif full_extension == "rasmap.backup":
-        roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["ras-mapper-file", "ras-file", pystac.MediaType.TEXT]
         description = """Backup Ras Mapper file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif full_extension == "rasmap.original":
-        roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
+        roles = ["ras-mapper-file", "ras-file", pystac.MediaType.TEXT]
         description = """Original Ras Mapper file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif file_extension == ".txt":
-        roles.extend([pystac.MediaType.TEXT])
+        roles = [pystac.MediaType.TEXT]
         description = """Miscellaneous text file."""
-
+        asset = GenericAsset(url, roles=roles, description=description)
     elif file_extension == ".xml":
-        roles.extend([pystac.MediaType.XML])
+        roles = [pystac.MediaType.XML]
         description = """Miscellaneous xml file."""
+        asset = GenericAsset(url, roles=roles, description=description)
+    else:
+        asset = GenericAsset(url)
+        asset.title = Path(url).name
 
-    return {"roles": roles, "description": description, "title": title}
+    asset.title = Path(url).name
+    asset = check_storage_extension(asset)
+    return asset
+
+
+def check_storage_extension(asset: Asset) -> Asset:
+    """If the file is hosted on S3, add the storage extension."""
+    if file_location(asset.href) == "s3":
+        stor_ext = StorageExtension.ext(asset)
+        meta = get_metadata(asset.href)
+        stor_ext.apply(platform="AWS", region=meta["storage:region"], tier=meta["storage:tier"])
+    return asset

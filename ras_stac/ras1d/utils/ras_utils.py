@@ -9,9 +9,11 @@ from shapely.errors import UnsupportedGEOSVersionError
 from shapely.geometry import LineString, MultiPoint, Point
 
 
-def prj_is_ras(prj_contents: str):
-    """Verify if prj is from hec-ras model."""
-    if "Proj Title" in prj_contents.split("\n")[0]:
+def is_ras_prj(url: str) -> bool:
+    """Check if a file is a HEC-RAS project file."""
+    with open(url) as f:
+        file_str = f.read()
+    if "Proj Title" in file_str.split("\n")[0]:
         return True
     else:
         return False

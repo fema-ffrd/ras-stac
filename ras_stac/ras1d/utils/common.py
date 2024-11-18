@@ -1,4 +1,3 @@
-import os
 import sqlite3
 
 import contextily as ctx
@@ -6,29 +5,9 @@ import matplotlib.pyplot as plt
 import requests
 
 
-def file_location(fpath: str, exists: bool = True) -> str:
-    """Check if file is local or on s3."""
-    if os.path.exists(os.path.dirname(fpath)):
-        return "local"
-    elif fpath.startswith("s3://"):
-        return "s3"
-    else:
-        raise ValueError(f"Path {fpath} is neither on local machine nor an S3 URL")
-
-
-def gather_dir_local(in_path: str) -> list:
-    """Walk a directory and get all file paths"""
-    out_list = []
-    for root, subFolder, files in os.walk(in_path):
-        for item in files:
-            out_list.append(str(os.path.join(root, item)))
-    return out_list
-
-
 def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
     """Create the metadata table in the geopackage."""
     with sqlite3.connect(gpkg_path) as conn:
-        string = ""
         curs = conn.cursor()
         curs.execute("DROP TABLE IF Exists metadata")
         curs.execute("CREATE TABLE IF NOT EXISTS metadata (key, value);")

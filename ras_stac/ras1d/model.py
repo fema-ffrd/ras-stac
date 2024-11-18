@@ -4,8 +4,8 @@ from pathlib import Path
 import numpy as np
 from pystac import Asset, Item
 
-from ras_stac.ras1d.classes import ProjectAsset
-from ras_stac.utils.stac_utils import asset_factory
+from ras_stac.ras1d.utils.classes import ProjectAsset
+from ras_stac.ras1d.utils.stac_utils import asset_factory
 
 
 class Ras1dModel(Item):
