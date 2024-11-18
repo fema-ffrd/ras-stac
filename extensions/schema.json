@@ -79,6 +79,7 @@
     "assets": {
       "type": "object",
       "patternProperties": {
+        ".*\\.prj$": {"$ref": "#/definitions/fields/properties/ras1d:prj_file"},
         ".*\\.[pP]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:plan"},
         ".*\\.[gG]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:geometry"},
         ".*\\.[fF]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:steady_flow"},
@@ -200,17 +201,44 @@
           "type": "integer",
           "description": "The number of SA connections in the current geometry file."
         },
+        "ras1d:prj_file": {
+          "type": "object",
+          "description": "A HEC-RAS project file.",
+          "required": [
+            "ras1d:project_title",
+            "title",
+            "href"
+          ],
+          "properties": {
+            "title": {"type": "string"},
+            "ras1d:project_title": {"type": "string"},
+            "file": {
+              "type": "string",
+              "pattern": ".*\\.[pP]\\d\\d$"
+            },
+            "geometry": {"$ref": "#/definitions/fields/properties/ras1d:geometry"},
+            "flow": {
+              "oneOf": [
+                {"$ref": "#/definitions/fields/properties/ras1d:steady_flow"},
+                {"$ref": "#/definitions/fields/properties/ras1d:quasi_unsteady_flow"},
+                {"$ref": "#/definitions/fields/properties/ras1d:unsteady_flow"}
+              ]
+            }
+          }
+        },
         "ras1d:plan": {
           "type": "object",
           "description": "A HEC-RAS plan file.",
           "required": [
             "title",
-            "short_id",
+            "ras1d:short_id",
+            "ras1d:plan_title",
             "href"
           ],
           "properties": {
             "title": {"type": "string"},
-            "short_id": {"type": "string"},
+            "ras1d:short_id": {"type": "string"},
+            "ras1d:plan_title": {"type": "string"},
             "file": {
               "type": "string",
               "pattern": ".*\\.[pP]\\d\\d$"
@@ -230,10 +258,12 @@
           "description": "A HEC-RAS geometry file.",
           "required": [
             "title",
+            "ras1d:geom_title",
             "href"
           ],
           "properties": {
             "title": {"type": "string"},
+            "ras1d:geom_title": {"type": "string"},
             "file": {
               "type": "string",
               "pattern": ".*\\.[gG]\\d\\d$"
@@ -256,10 +286,12 @@
           "description": "A HEC-RAS steady flow file.",
           "required": [
             "title",
+            "ras1d:flow_title",
             "href"
           ],
           "properties": {
             "title": {"type": "string"},
+            "ras1d:flow_title": {"type": "string"},
             "file": {
               "type": "string",
               "pattern": ".*\\.[fF]\\d\\d$"
@@ -272,10 +304,12 @@
           "description": "A HEC-RAS quasi-unsteady flow file.",
           "required": [
             "title",
+            "ras1d:flow_title",
             "href"
           ],
           "properties": {
             "title": {"type": "string"},
+            "ras1d:flow_title": {"type": "string"},
             "file": {
               "type": "string",
               "pattern": ".*\\.[qQ]\\d\\d$"
@@ -287,10 +321,12 @@
           "description": "A HEC-RAS unsteady flow file.",
           "required": [
             "title",
+            "ras1d:flow_title",
             "href"
           ],
           "properties": {
             "title": {"type": "string"},
+            "ras1d:flow_title": {"type": "string"},
             "file": {
               "type": "string",
               "pattern": ".*\\.[uU]\\d\\d$"

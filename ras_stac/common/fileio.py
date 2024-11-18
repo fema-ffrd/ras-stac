@@ -1,6 +1,7 @@
+### In the future, this will host functions to handle cloud-hosted data ###
 from pathlib import Path
 
-from ras_stac.utils.s3_utils import list_keys
+from ras_stac.common.s3_utils import list_keys
 
 
 def ls(directory: str | Path) -> list[Path]:

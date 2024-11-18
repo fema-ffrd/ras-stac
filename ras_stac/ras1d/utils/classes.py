@@ -28,6 +28,7 @@ class ProjectAsset(GenericAsset):
 
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
+        self.extra_fields["ras1d:project_title"] = self.ras1d_title
 
         if not href.endswith(".hdf"):
             self.roles.append(MediaType.TEXT)
@@ -77,7 +78,8 @@ class PlanAsset(GenericAsset):
 
     def __init__(self, href: str, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
-        self.extra_fields = {"short_id": self.short_id}
+        self.extra_fields["ras1d:plan_title"] = self.ras1d_title
+        self.extra_fields["ras1d:short_id"] = self.short_id
 
         if not href.endswith(".hdf"):
             self.roles.append(MediaType.TEXT)
@@ -102,6 +104,7 @@ class GeometryAsset(GenericAsset):
         super().__init__(href, *args, **kwargs)
 
         self.extra_fields = {
+            "ras1d:geom_title": self.ras1d_title,
             "ras1d:rivers": 0,
             "ras1d:reaches": 0,
             "ras1d:cross_sections": {
@@ -136,15 +139,27 @@ class SteadyFlowAsset(GenericAsset):
 
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
+        self.extra_fields["ras1d:flow_title"] = self.ras1d_title
+        self.extra_fields["ras1d:number_of_profiles"] = self.n_profiles
+
+    @property
+    def ras1d_title(self) -> str:
+        return search_contents(self.file_str.splitlines(), "Flow Title")
+
+    @property
+    def n_profiles(self) -> int:
+        return int(search_contents(self.file_str.splitlines(), "Number of Profiles"))
 
 
 class QuasiUnsteadyFlowAsset(GenericAsset):
 
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
+        self.extra_fields["ras1d:flow_title"] = self.ras1d_title
 
 
 class UnsteadyFlowAsset(GenericAsset):
 
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
+        self.extra_fields["ras1d:flow_title"] = self.ras1d_title
