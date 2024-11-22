@@ -340,9 +340,15 @@ def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
     logging.info("Discovering model contents")
     converter = from_directory(in_prefix, crs)
     converter.check_for_mip()
+
     thumb_path = out_prefix + "Thumbnail.png"
     logging.info(f"Generating thumbnail at {thumb_path}")
     converter.export_thumbnail(thumb_path)
+
+    gpkg_path = out_prefix + f"{converter.idx}.gpkg"
+    logging.info(f"Generating geopackage at {gpkg_path}")
+    converter.export_gpkg(gpkg_path)
+
     stac_path = out_prefix + f"{converter.idx}.json"
     logging.info(f"Generating STAC item at {stac_path}")
     converter.export_stac(stac_path)

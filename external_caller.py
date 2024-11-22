@@ -5,7 +5,7 @@ import warnings
 
 from botocore.exceptions import ClientError
 
-from ras_stac.ras1d.converter import append_geopackage
+from ras_stac.ras1d.converter import append_geopackage, process_in_place_s3
 from ras_stac.ras1d.utils.s3_utils import str_from_s3
 
 warnings.filterwarnings("ignore")
@@ -24,8 +24,8 @@ def owp_wrapper(in_prefix: str, out_prefix: str) -> dict:
         crs = crs_dict["best_crs"]
     except ClientError:
         crs = None
-    # return process_in_place_s3(in_prefix, crs, out_prefix)
-    return append_geopackage(in_prefix, crs, out_prefix)
+    return process_in_place_s3(in_prefix, crs, out_prefix)
+    # return append_geopackage(in_prefix, crs, out_prefix)
 
 
 def main():
