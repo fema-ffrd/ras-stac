@@ -69,6 +69,8 @@ def make_thumbnail(gdfs: dict):
 
     # Add data
     for layer in gdfs.keys():
+        if layer == "XS_concave_hull":
+            continue
         gdfs[layer].plot(ax=ax, color=cdict[layer], linewidth=1, label=layer)
     try:
         ctx.add_basemap(ax, crs=crs, source=ctx.providers.USGS.USTopo)
