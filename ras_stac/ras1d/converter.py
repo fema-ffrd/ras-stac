@@ -341,15 +341,19 @@ def process_in_place_s3(in_prefix: str, crs: str, out_prefix: str):
     converter = from_directory(in_prefix, crs)
     converter.check_for_mip()
 
+    # Define paths
     thumb_path = out_prefix + "Thumbnail.png"
-    logging.info(f"Generating thumbnail at {thumb_path}")
-    converter.export_thumbnail(thumb_path)
-
     gpkg_path = out_prefix + f"{converter.idx}.gpkg"
-    logging.info(f"Generating geopackage at {gpkg_path}")
-    converter.export_gpkg(gpkg_path)
-
     stac_path = out_prefix + f"{converter.idx}.json"
+
+    # Process
+    if converter.crs is not None:
+        logging.info(f"Generating thumbnail at {thumb_path}")
+        converter.export_thumbnail(thumb_path)
+
+        logging.info(f"Generating geopackage at {gpkg_path}")
+        converter.export_gpkg(gpkg_path)
+
     logging.info(f"Generating STAC item at {stac_path}")
     converter.export_stac(stac_path)
     return {"in_path": in_prefix, "crs": crs, "thumb_path": thumb_path, "stac_path": stac_path}
