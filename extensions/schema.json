@@ -201,6 +201,10 @@
           "type": "integer",
           "description": "The number of SA connections in the current geometry file."
         },
+        "ras1d:program_version": {
+          "type": "string",
+          "description": "HEC-RAS version last used to modify the file (ex. 4.1.0)."
+        },
         "ras1d:prj_file": {
           "type": "object",
           "description": "A HEC-RAS project file.",
@@ -231,6 +235,7 @@
           "properties": {
             "title": {"type": "string"},
             "ras1d:short_id": {"type": "string"},
+            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
             "ras1d:plan_title": {"type": "string"},
             "href": {
               "type": "string",
@@ -251,6 +256,7 @@
           "properties": {
             "title": {"type": "string"},
             "ras1d:geom_title": {"type": "string"},
+            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
             "href": {
               "type": "string",
               "pattern": ".*\\.[gG]\\d\\d$"
@@ -279,6 +285,7 @@
           "properties": {
             "title": {"type": "string"},
             "ras1d:flow_title": {"type": "string"},
+            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
             "href": {
               "type": "string",
               "pattern": ".*\\.[fF]\\d\\d$"
@@ -297,6 +304,7 @@
           "properties": {
             "title": {"type": "string"},
             "ras1d:flow_title": {"type": "string"},
+            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
             "href": {
               "type": "string",
               "pattern": ".*\\.[qQ]\\d\\d$"
@@ -314,6 +322,7 @@
           "properties": {
             "href": {"type": "string"},
             "ras1d:flow_title": {"type": "string"},
+            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
             "file": {
               "type": "string",
               "pattern": ".*\\.[uU]\\d\\d$"
