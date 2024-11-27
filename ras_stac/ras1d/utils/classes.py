@@ -1,5 +1,6 @@
 import math
 from collections import defaultdict
+from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 
@@ -26,7 +27,7 @@ class GenericAsset(Asset):
         self.name = Path(href).name
         self.stem = Path(href).stem
         with open(href) as f:
-            self.file_str = f.read()
+            self.file_str = f.read().splitlines()
 
         if href.endswith(".hdf"):
             self.roles.append(MediaType.HDF5)
@@ -37,7 +38,11 @@ class GenericAsset(Asset):
     @cached_property
     def program_version(self) -> str:
         """The HEC-RAS version last used to modify the file."""
-        return search_contents(self.contents, "Program Version", expect_one=False)
+        return search_contents(self.file_str, "Program Version", expect_one=False)
+
+    @property
+    def short_summary(self):
+        return {"title": self.ras1d_title, "file": str(self.name)}
 
 
 class ProjectAsset(GenericAsset):
@@ -52,42 +57,42 @@ class ProjectAsset(GenericAsset):
 
     @cached_property
     def ras1d_title(self) -> str:
-        return search_contents(self.file_str.splitlines(), "Proj Title")
+        return search_contents(self.file_str, "Proj Title")
 
     @cached_property
     def units(self) -> str:
-        for line in self.file_str.splitlines():
+        for line in self.file_str:
             if "Units" in line:
                 return " ".join(line.split(" ")[:-1])
 
     @cached_property
     def plan_current(self) -> str:
-        suffix = search_contents(self.file_str.splitlines(), "Current Plan", expect_one=True)
+        suffix = search_contents(self.file_str, "Current Plan", expect_one=True)
         return self.name_from_suffix(suffix)
 
     @cached_property
     def plan_files(self) -> list[str]:
-        suffixes = search_contents(self.file_str.splitlines(), "Plan File", expect_one=False)
+        suffixes = search_contents(self.file_str, "Plan File", expect_one=False)
         return [self.name_from_suffix(i) for i in suffixes]
 
     @cached_property
     def geometry_files(self) -> list[str]:
-        suffixes = search_contents(self.file_str.splitlines(), "Geometry File", expect_one=False)
+        suffixes = search_contents(self.file_str, "Geom File", expect_one=False)
         return [self.name_from_suffix(i) for i in suffixes]
 
     @cached_property
     def steady_flow_files(self) -> list[str]:
-        suffixes = search_contents(self.file_str.splitlines(), "Flow File", expect_one=False)
+        suffixes = search_contents(self.file_str, "Flow File", expect_one=False)
         return [self.name_from_suffix(i) for i in suffixes]
 
     @cached_property
     def quasi_unsteady_flow_files(self) -> list[str]:
-        suffixes = search_contents(self.file_str.splitlines(), "QuasiSteady File", expect_one=False)
+        suffixes = search_contents(self.file_str, "QuasiSteady File", expect_one=False)
         return [self.name_from_suffix(i) for i in suffixes]
 
     @cached_property
     def unsteady_flow_files(self) -> list[str]:
-        suffixes = search_contents(self.file_str.splitlines(), "Unsteady File", expect_one=False)
+        suffixes = search_contents(self.file_str, "Unsteady File", expect_one=False)
         return [self.name_from_suffix(i) for i in suffixes]
 
 
@@ -105,28 +110,28 @@ class PlanAsset(GenericAsset):
 
     @cached_property
     def ras1d_title(self) -> str:
-        return search_contents(self.file_str.splitlines(), "Plan Title")
+        return search_contents(self.file_str, "Plan Title")
 
     @cached_property
     def primary_geometry(self) -> str:
-        suffix = search_contents(self.file_str.splitlines(), "Geom File", expect_one=True)
+        suffix = search_contents(self.file_str, "Geom File", expect_one=True)
         return self.name_from_suffix(suffix)
 
     @cached_property
     def primary_flow(self) -> str:
-        suffix = search_contents(self.file_str.splitlines(), "Flow File", expect_one=True)
+        suffix = search_contents(self.file_str, "Flow File", expect_one=True)
         return self.name_from_suffix(suffix)
 
     @cached_property
     def short_id(self) -> str:
-        return search_contents(self.file_str.splitlines(), "Short Identifier")
+        return search_contents(self.file_str, "Short Identifier")
 
 
 class GeometryAsset(GenericAsset):
 
     def __init__(self, href: str = "null", *args, **kwargs):
         super().__init__(href, *args, **kwargs)
-
+        self.crs = kwargs.get("crs", None)
         self.extra_fields = {
             "ras1d:geom_title": self.ras1d_title,
             "ras1d:rivers": len(self.rivers),
@@ -150,15 +155,13 @@ class GeometryAsset(GenericAsset):
         }
         self.geometry = us_bounds
         self.bbox = [0, 0, 0, 0]
-        self._junctions = None
-        self._cross_sections = None
 
         if not href.endswith(".hdf"):
             self.roles.append(MediaType.TEXT)
 
     @cached_property
     def ras1d_title(self) -> str:
-        return search_contents(self.file_str.splitlines(), "Geom Title")
+        return search_contents(self.file_str, "Geom Title")
 
     @cached_property
     def rivers(self) -> dict[str, "River"]:
@@ -173,14 +176,14 @@ class GeometryAsset(GenericAsset):
     @cached_property
     def reaches(self) -> dict[str, "Reach"]:
         """A dictionary of the reaches contained in the HEC-RAS geometry file."""
-        river_reaches = search_contents(self.contents, "River Reach", expect_one=False)
-        return {river_reach: Reach(self.contents, river_reach, self.crs) for river_reach in river_reaches}
+        river_reaches = search_contents(self.file_str, "River Reach", expect_one=False)
+        return {river_reach: Reach(self.file_str, river_reach, self.crs) for river_reach in river_reaches}
 
     @cached_property
     def junctions(self) -> dict[str, "Junction"]:
         """A dictionary of the junctions contained in the HEC-RAS geometry file."""
-        juncts = search_contents(self.contents, "Junct Name", expect_one=False)
-        return {junction: Junction(self.contents, junction, self.crs) for junction in juncts}
+        juncts = search_contents(self.file_str, "Junct Name", expect_one=False)
+        return {junction: Junction(self.file_str, junction, self.crs) for junction in juncts}
 
     @cached_property
     def cross_sections(self) -> dict[str, "XS"]:
@@ -201,14 +204,26 @@ class GeometryAsset(GenericAsset):
     @cached_property
     def storage_areas(self) -> dict[str, "StorageArea"]:
         """A dictionary of the storage areas contained in the HEC-RAS geometry file."""
-        areas = search_contents(self.contents, "Storage Area", expect_one=False)
+        areas = search_contents(self.file_str, "Storage Area", expect_one=False)
         return {a: StorageArea(a, self.crs) for a in areas}
 
     @cached_property
     def connections(self) -> dict[str, "Connection"]:
         """A dictionary of the SA/2D connections contained in the HEC-RAS geometry file."""
-        connections = search_contents(self.contents, "Connection", expect_one=False)
+        connections = search_contents(self.file_str, "Connection", expect_one=False)
         return {c: Connection(c, self.crs) for c in connections}
+
+    @cached_property
+    def datetimes(self):
+        """Get the latest node last updated entry for this geometry"""
+        dts = search_contents(self.file_str, "Node Last Edited Time", expect_one=False)
+        if len(dts) >= 1:
+            try:
+                return [datetime.strptime(d, "%b/%d/%Y %H:%M:%S") for d in dts]
+            except ValueError:
+                return []
+        else:
+            return []
 
     def get_subtype_gdf(self, subtype: str) -> gpd.GeoDataFrame:
         """Get a geodataframe of a specific subtype of geometry asset."""
@@ -233,11 +248,11 @@ class SteadyFlowAsset(GenericAsset):
 
     @property
     def ras1d_title(self) -> str:
-        return search_contents(self.file_str.splitlines(), "Flow Title")
+        return search_contents(self.file_str, "Flow Title")
 
     @property
     def n_profiles(self) -> int:
-        return int(search_contents(self.file_str.splitlines(), "Number of Profiles"))
+        return int(search_contents(self.file_str, "Number of Profiles"))
 
 
 class QuasiUnsteadyFlowAsset(GenericAsset):
@@ -416,6 +431,10 @@ class XS:
             return delimited_pairs_to_lists(lines)
         except ValueError:
             return None
+
+    @cached_property
+    def is_interpolated(self):
+        return "*" in self.split_xs_header(1)
 
     def wse_intersection_pts(self, wse: float) -> list[tuple[float]]:
         """Find where the cross-section terrain intersects the water-surface elevation."""

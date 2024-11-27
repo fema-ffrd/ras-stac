@@ -1,10 +1,18 @@
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 
 import numpy as np
-from pystac import Asset, Item
+from pystac import Item
 
-from ras_stac.ras1d.utils.classes import ProjectAsset
+from ras_stac.ras1d.utils.classes import (
+    GeometryAsset,
+    PlanAsset,
+    ProjectAsset,
+    QuasiUnsteadyFlowAsset,
+    SteadyFlowAsset,
+    UnsteadyFlowAsset,
+)
 from ras_stac.ras1d.utils.stac_utils import asset_factory
 
 
@@ -27,13 +35,14 @@ class Ras1dModel(Item):
         self.properties = {}
         self.properties["ras1d:project"] = self.project.name
         self.properties["ras1d:project_title"] = self.project.ras1d_title
+        self.properties["ras1d:project_directory"] = str(Path(self.project.href).parent)
         self.properties["ras1d:units"] = self.project.units
         self.properties["ras1d:plan_current"] = self.plan_current.name
-        self.properties["ras1d:plan_files"] = [i.to_dict() for i in self.plan_files]
-        self.properties["ras1d:geometry_files"] = [i.to_dict() for i in self.geometry_files]
-        self.properties["ras1d:steady_flow_files"] = [i.to_dict() for i in self.steady_flow_files]
-        self.properties["ras1d:quasi_unsteady_flow_files"] = [i.to_dict() for i in self.quasi_unsteady_flow_files]
-        self.properties["ras1d:unsteady_flow_files"] = [i.to_dict() for i in self.unsteady_flow_files]
+        self.properties["ras1d:plan_files"] = (self.plan_summary,)
+        self.properties["ras1d:geometry_files"] = [i.short_summary for i in self.geometry_files]
+        self.properties["ras1d:steady_flow_files"] = [i.short_summary for i in self.steady_flow_files]
+        self.properties["ras1d:quasi_unsteady_flow_files"] = [i.short_summary for i in self.quasi_unsteady_flow_files]
+        self.properties["ras1d:unsteady_flow_files"] = [i.short_summary for i in self.unsteady_flow_files]
         geom_summary_fields = [
             "ras1d:rivers",
             "ras1d:reaches",
@@ -49,6 +58,9 @@ class Ras1dModel(Item):
         ]
         for field in geom_summary_fields:
             self.properties[field] = self.geometry_current.extra_fields[field]
+        self.properties["start_datetime"] = self.start_datetime
+        self.properties["end_datetime"] = self.start_datetime
+        self.properties["datetime"] = self.start_datetime
 
         self.stac_extensions = ["https://github.com/fema-ffrd/ras-stac/extensions/schema.json"]
 
@@ -77,7 +89,8 @@ class Ras1dModel(Item):
             return [0, 0, 0, 0]
         else:
             bboxes = np.array([i.bbox for i in self.geometry_files])
-            return [bboxes[:, 0].min(), bboxes[:, 1].min(), bboxes[:, 2].max(), bboxes[:, 3].max()]
+            bboxes = [bboxes[:, 0].min(), bboxes[:, 1].min(), bboxes[:, 2].max(), bboxes[:, 3].max()]
+            return [float(i) for i in bboxes]
 
     @property
     def geometry(self) -> dict | None:
@@ -88,79 +101,107 @@ class Ras1dModel(Item):
 
     @property
     def datetime(self) -> str | None:
-        dts = self.get_geometry_datetimes()
+        dts = self.geometry_datetimes
         if len(dts) == 1:
-            return dts[0]
+            return str(dts[0])
         else:
-            return None
+            if max(dts) == min(dts):
+                return str(dts[0])
+            else:
+                return None
 
     @property
     def start_datetime(self) -> str | None:
-        dts = self.get_geometry_datetimes()
+        dts = self.geometry_datetimes
         if len(dts) > 1:
-            return dts.min()
+            if max(dts) == min(dts):
+                return None
+            else:
+                return str(min(dts))
         else:
             return None
 
     @property
     def end_datetime(self) -> str | None:
-        dts = self.get_geometry_datetimes()
+        dts = self.geometry_datetimes
         if len(dts) > 1:
-            return dts.max()
+            if max(dts) == min(dts):
+                return None
+            else:
+                return str(max(dts))
         else:
             return None
 
     @property
-    def plan_current(self) -> Asset | None:
+    def plan_current(self) -> PlanAsset | None:
         return self.assets[self.project.plan_current]
 
     @property
-    def geometry_current(self) -> Asset | None:
+    def geometry_current(self) -> GeometryAsset | None:
         if self.plan_current is None:
             return None
         else:
             return self.assets[self.plan_current.primary_geometry]
 
     @property
-    def plan_files(self) -> list[Asset]:
+    def plan_files(self) -> list[PlanAsset]:
         return [self.assets[f] for f in self.project.plan_files]
 
     @property
-    def geometry_files(self) -> list[Asset]:
+    def geometry_files(self) -> list[GeometryAsset]:
         if self.project is None:
             return []
         else:
             return [self.assets[f] for f in self.project.geometry_files]
 
     @property
-    def steady_flow_files(self) -> list[Asset]:
+    def steady_flow_files(self) -> list[SteadyFlowAsset]:
         if self.project is None:
             return []
         else:
             return [self.assets[f] for f in self.project.steady_flow_files]
 
     @property
-    def quasi_unsteady_flow_files(self) -> list[Asset]:
+    def quasi_unsteady_flow_files(self) -> list[QuasiUnsteadyFlowAsset]:
         if self.project is None:
             return []
         else:
             return [self.assets[f] for f in self.project.quasi_unsteady_flow_files]
 
     @property
-    def unsteady_flow_files(self) -> list[Asset]:
+    def unsteady_flow_files(self) -> list[UnsteadyFlowAsset]:
         if self.project is None:
             return []
         else:
             return [self.assets[f] for f in self.project.unsteady_flow_files]
 
     @property
-    def project(self) -> Asset:
+    def plan_summary(self) -> list[dict]:
+        out_list = []
+        for f in self.project.plan_files:
+            tmp_plan = self.assets[f]
+            tmp_geom = self.assets[tmp_plan.primary_geometry]
+            tmp_flow = self.assets[tmp_plan.primary_flow]
+            tmp_obj = {
+                "current": f == self.project.plan_current,
+                "title": tmp_plan.ras1d_title,
+                "short_id": tmp_plan.short_id,
+                "file": str(tmp_plan.name),
+                "geometry": tmp_geom.short_summary,
+                "flow": tmp_flow.short_summary,
+            }
+            out_list.append(tmp_obj)
+        return out_list
+
+    @property
+    def project(self) -> ProjectAsset:
         return self._project
 
-    def get_geometry_datetimes(self) -> list[str]:
+    @cached_property
+    def geometry_datetimes(self) -> list[datetime]:
         dts = []
         for i in self.geometry_files:
-            dts.extend(i.get_datetimes())
+            dts.extend(i.datetimes)
         if len(dts) == 0:
             self._dt_source = "processing time"
             dts = [datetime.now()]
