@@ -1,23 +1,22 @@
 import logging
-import pystac
 import sys
-
-from dotenv import find_dotenv, load_dotenv
-from papipyplug import parse_input, plugin_logger, print_results
 from typing import List
 
-from .utils.common import check_params, PLAN_HDF_IGNORE_PROPERTIES
-from .utils.ras_utils import ras_plan_asset_info, RasStacPlan
-from .utils.s3_utils import (
-    verify_safe_prefix,
+import pystac
+from dotenv import find_dotenv, load_dotenv
+from papipyplug import parse_input, plugin_logger, print_results
+
+from ..common.s3_utils import (
+    copy_item_to_s3,
+    get_basic_object_metadata,
+    init_s3_resources,
+    read_ras_plan_from_s3,
     s3_key_public_url_converter,
     split_s3_key,
-    init_s3_resources,
-    get_basic_object_metadata,
-    copy_item_to_s3,
-    read_ras_plan_from_s3,
+    verify_safe_prefix,
 )
-
+from .utils.common import PLAN_HDF_IGNORE_PROPERTIES, check_params
+from .utils.ras_utils import RasStacPlan, ras_plan_asset_info
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
@@ -41,12 +40,8 @@ def new_plan_item(
     minio_mode: bool = False,
 ):
     verify_safe_prefix(new_plan_item_s3_key)
-    plan_item_public_url = s3_key_public_url_converter(
-        new_plan_item_s3_key, minio_mode=minio_mode
-    )
-    geom_item_public_url = s3_key_public_url_converter(
-        geom_item_s3_key, minio_mode=minio_mode
-    )
+    plan_item_public_url = s3_key_public_url_converter(new_plan_item_s3_key, minio_mode=minio_mode)
+    geom_item_public_url = s3_key_public_url_converter(geom_item_s3_key, minio_mode=minio_mode)
 
     # Prep parameters
     bucket_name, _ = split_s3_key(plan_hdf)
@@ -70,13 +65,9 @@ def new_plan_item(
         try:
             logging.info("creating plan item")
             if item_props_to_remove:
-                plan_item = ras_stac_plan.to_item(
-                    geom_item, plan_meta, sim_id, item_props_to_remove
-                )
+                plan_item = ras_stac_plan.to_item(geom_item, plan_meta, sim_id, item_props_to_remove)
             else:
-                plan_item = ras_stac_plan.to_item(
-                    geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES
-                )
+                plan_item = ras_stac_plan.to_item(geom_item, plan_meta, sim_id, PLAN_HDF_IGNORE_PROPERTIES)
         except TypeError:
             return logging.error(
                 f"unable to retrieve model results with geom data from {geom_item_public_url} and metadata \
