@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/fema-ffrd/ras-stac/extensions/schema.json#",
-  "title": "HEC-RAS 1D Extension",
-  "description": "STAC extension for HEC-RAS 1D models.",
+  "title": "HEC-RAS Extension",
+  "description": "STAC extension for HEC-RAS models.",
   "oneOf": [
     {
       "$comment": "This is the schema for STAC Items.",
@@ -29,7 +29,7 @@
                 {
                   "$comment": "Required fields for item properties",
                   "required": [
-                    "ras1d:project"
+                    "ras:project"
                   ]
                 }
               ]
@@ -79,12 +79,12 @@
     "assets": {
       "type": "object",
       "patternProperties": {
-        ".*\\.prj$": {"$ref": "#/definitions/fields/properties/ras1d:prj_file"},
-        ".*\\.[pP]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:plan"},
-        ".*\\.[gG]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:geometry"},
-        ".*\\.[fF]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:steady_flow"},
-        ".*\\.[qQ]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:quasi_unsteady_flow"},
-        ".*\\.[uU]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras1d:unsteady_flow"},
+        ".*\\.prj$": {"$ref": "#/definitions/fields/properties/ras:prj_file"},
+        ".*\\.[pP]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras:plan"},
+        ".*\\.[gG]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras:geometry"},
+        ".*\\.[fF]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras:steady_flow"},
+        ".*\\.[qQ]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras:quasi_unsteady_flow"},
+        ".*\\.[uU]\\d\\d$": {"$ref": "#/definitions/fields/properties/ras:unsteady_flow"},
         ".*": {"$ref": "#/definitions/fields/properties/generic_asset"}
       },
       "minProperties": 1,
@@ -93,70 +93,64 @@
     "fields": {
       "type": "object",
       "properties": {
-        "ras1d:project": {
+        "ras:project": {
           "type": "string",
           "description": "Name of the HEC-RAS project.  Ex: wet_creek.prj",
           "pattern": ".*\\.prj$"
         },
-        "ras1d:project_title": {
+        "ras:project_title": {
           "type": "string",
           "description": "Title of the HEC-RAS project, as defined by 'Proj Title' in the .prj file."
         },
-        "ras1d:units": {
+        "ras:units": {
           "type": "string",
           "description": "Units of the HEC-RAS project, as defined in the .prj file.",
           "pattern": "(SI|English)"
         },
-        "ras1d:plan_current": {
-          "$comment": "would have used current_plan, but RAS summary page says plan (current)",
-          "type": "string",
-          "description": "Name of current plan of the HEC-RAS project, as defined in the .prj file.",
-          "pattern": "^.*[pP]\\d\\d$"
-        },
-        "ras1d:plan_files": {
+        "ras:plan_files": {
           "type": "array",
           "description": "A list of plans associated with the HEC-RAS project, as defined in the .prj file.",
           "items": {
-            "$ref": "#/definitions/fields/properties/ras1d:plan"
+            "$ref": "#/definitions/fields/properties/ras:plan"
           }
         },
-        "ras1d:geometry_files": {
+        "ras:geometry_files": {
           "type": "array",
           "description": "A list of geometry files associated with the HEC-RAS project.",
           "items": {
-            "$ref": "#/definitions/fields/properties/ras1d:geometry"
+            "$ref": "#/definitions/fields/properties/ras:geometry"
           }
         },
-        "ras1d:steady_flow_files": {
+        "ras:steady_flow_files": {
           "type": "array",
           "description": "A list of steady flow files associated with the HEC-RAS project.",
           "items": {
-            "$ref": "#/definitions/fields/properties/ras1d:steady_flow"
+            "$ref": "#/definitions/fields/properties/ras:steady_flow"
           }
         },
-        "ras1d:quasi_unsteady_flow_files": {
+        "ras:quasi_unsteady_flow_files": {
           "type": "array",
           "description": "A list of quasi-unsteady flow files associated with the HEC-RAS project.",
           "items": {
-            "$ref": "#/definitions/fields/properties/ras1d:quasi_unsteady_flow"
+            "$ref": "#/definitions/fields/properties/ras:quasi_unsteady_flow"
           }
         },
-        "ras1d:unsteady_flow_files": {
+        "ras:unsteady_flow_files": {
           "type": "array",
           "description": "A list of unsteady flow files associated with the HEC-RAS project.",
           "items": {
-            "$ref": "#/definitions/fields/properties/ras1d:unsteady_flow"
+            "$ref": "#/definitions/fields/properties/ras:unsteady_flow"
           }
         },
-        "ras1d:rivers": {
+        "ras:rivers": {
           "type": "integer",
           "description": "The number of rivers in the current geometry file."
         },
-        "ras1d:reaches": {
+        "ras:reaches": {
           "type": "integer",
           "description": "The number of reaches in the current geometry file."
         },
-        "ras1d:cross_sections": {
+        "ras:cross_sections": {
           "type": "object",
           "description": "Summary of the number of cross-sections in the current geometry file.",
           "properties": {
@@ -165,31 +159,31 @@
             "interpolated": {"type": "integer"}
           }
         },
-        "ras1d:culverts": {
+        "ras:culverts": {
           "type": "integer",
           "description": "The number of culverts in the current geometry file."
         },
-        "ras1d:bridges": {
+        "ras:bridges": {
           "type": "integer",
           "description": "The number of bridges in the current geometry file."
         },
-        "ras1d:multiple_openings": {
+        "ras:multiple_openings": {
           "type": "integer",
           "description": "The number of multiple openings in the current geometry file."
         },
-        "ras1d:inline_structures": {
+        "ras:inline_structures": {
           "type": "integer",
           "description": "The number of inline structures in the current geometry file."
         },
-        "ras1d:lateral_structures": {
+        "ras:lateral_structures": {
           "type": "integer",
           "description": "The number of lateral structures in the current geometry file."
         },
-        "ras1d:storage_areas": {
+        "ras:storage_areas": {
           "type": "integer",
           "description": "The number of storage areas in the current geometry file."
         },
-        "ras1d:2d_flow_areas": {
+        "ras:2d_flow_areas": {
           "type": "object",
           "description": "Summary of The 2D flow areas in the current geometry file.",
           "properties": {
@@ -197,133 +191,136 @@
             "total_cells": {"type": "integer"}
           }
         },
-        "ras1d:sa_connections": {
+        "ras:sa_connections": {
           "type": "integer",
-          "description": "The number of SA connections in the current geometry file."
+          "description": "The number of SA/2D connections in the current geometry file."
         },
-        "ras1d:program_version": {
+        "ras:program_version": {
           "type": "string",
           "description": "HEC-RAS version last used to modify the file (ex. 4.1.0)."
         },
-        "ras1d:prj_file": {
+        "ras:prj_file": {
           "type": "object",
           "description": "A HEC-RAS project file.",
           "required": [
-            "ras1d:project_title",
-            "title",
-            "href"
+            "ras:project_title"
           ],
           "properties": {
             "title": {"type": "string"},
-            "ras1d:project_title": {"type": "string"},
+            "ras:project_title": {"type": "string"},
             "href": {
               "type": "string",
               "pattern": ".*\\.prj$"
             },
-            "ras1d:plan_current": {"type": "string"}
+            "ras:plan_current": {"type": "string"}
           }
         },
-        "ras1d:plan": {
+        "ras:plan": {
           "type": "object",
           "description": "A HEC-RAS plan file.",
-          "required": [
-            "title",
-            "ras1d:short_id",
-            "ras1d:plan_title",
-            "href"
-          ],
           "properties": {
             "title": {"type": "string"},
-            "ras1d:short_id": {"type": "string"},
-            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
-            "ras1d:plan_title": {"type": "string"},
+            "ras:short_id": {"type": "string"},
+            "ras:program_version": {"$ref": "#/definitions/fields/properties/ras:program_version"},
+            "ras:plan_title": {"type": "string"},
             "href": {
               "type": "string",
               "pattern": ".*\\.[pP]\\d\\d$"
             },
-            "ras1d:geometry": {"type": "string"},
-            "ras1d:flow": {"type": "string"}
+            "ras:file": {
+              "type": "string",
+              "pattern": ".*\\.[pP]\\d\\d$"
+            },
+            "ras:geometry": {"$ref": "#/definitions/fields/properties/ras:geometry"},
+            "ras:flow": {"$ref": "#/definitions/fields/properties/ras:steady_flow"},
+            "ras:unsteady": {"oneOf": [
+              {"$ref": "#/definitions/fields/properties/ras:unsteady_flow"},
+              {"$ref": "#/definitions/fields/properties/ras:quasi_unsteady_flow"}
+            ]},
+            "ras:geometry_file": {
+              "type": "string",
+              "pattern": ".*\\.[gG]\\d\\d$"
+            },
+            "ras:flow_file": {
+              "type": "string",
+              "pattern": ".*\\.[fF]\\d\\d$"
+            }
           }
         },
-        "ras1d:geometry": {
+        "ras:geometry": {
           "type": "object",
           "description": "A HEC-RAS geometry file.",
-          "required": [
-            "title",
-            "ras1d:geom_title",
-            "href"
-          ],
           "properties": {
             "title": {"type": "string"},
-            "ras1d:geom_title": {"type": "string"},
-            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
+            "ras:geom_title": {"type": "string"},
+            "ras:program_version": {"$ref": "#/definitions/fields/properties/ras:program_version"},
             "href": {
               "type": "string",
               "pattern": ".*\\.[gG]\\d\\d$"
             },
-            "ras1d:rivers": {"$ref": "#/definitions/fields/properties/ras1d:rivers"},
-            "ras1d:reaches": {"$ref": "#/definitions/fields/properties/ras1d:reaches"},
-            "ras1d:cross_sections": {"$ref": "#/definitions/fields/properties/ras1d:cross_sections"},
-            "ras1d:culverts": {"$ref": "#/definitions/fields/properties/ras1d:culverts"},
-            "ras1d:bridges": {"$ref": "#/definitions/fields/properties/ras1d:bridges"},
-            "ras1d:multiple_openings": {"$ref": "#/definitions/fields/properties/ras1d:multiple_openings"},
-            "ras1d:inline_structures": {"$ref": "#/definitions/fields/properties/ras1d:inline_structures"},
-            "ras1d:lateral_structures": {"$ref": "#/definitions/fields/properties/ras1d:lateral_structures"},
-            "ras1d:storage_areas": {"$ref": "#/definitions/fields/properties/ras1d:storage_areas"},
-            "ras1d:2d_flow_areas": {"$ref": "#/definitions/fields/properties/ras1d:2d_flow_areas"},
-            "ras1d:sa_connections": {"$ref": "#/definitions/fields/properties/ras1d:sa_connections"}
+            "ras:file": {
+              "type": "string",
+              "pattern": ".*\\.[gG]\\d\\d$"
+            },
+            "ras:rivers": {"$ref": "#/definitions/fields/properties/ras:rivers"},
+            "ras:reaches": {"$ref": "#/definitions/fields/properties/ras:reaches"},
+            "ras:cross_sections": {"$ref": "#/definitions/fields/properties/ras:cross_sections"},
+            "ras:culverts": {"$ref": "#/definitions/fields/properties/ras:culverts"},
+            "ras:bridges": {"$ref": "#/definitions/fields/properties/ras:bridges"},
+            "ras:multiple_openings": {"$ref": "#/definitions/fields/properties/ras:multiple_openings"},
+            "ras:inline_structures": {"$ref": "#/definitions/fields/properties/ras:inline_structures"},
+            "ras:lateral_structures": {"$ref": "#/definitions/fields/properties/ras:lateral_structures"},
+            "ras:storage_areas": {"$ref": "#/definitions/fields/properties/ras:storage_areas"},
+            "ras:2d_flow_areas": {"$ref": "#/definitions/fields/properties/ras:2d_flow_areas"},
+            "ras:sa_connections": {"$ref": "#/definitions/fields/properties/ras:sa_connections"}
           }
         },
-        "ras1d:steady_flow": {
+        "ras:steady_flow": {
           "type": "object",
           "description": "A HEC-RAS steady flow file.",
-          "required": [
-            "title",
-            "ras1d:flow_title",
-            "href"
-          ],
           "properties": {
             "title": {"type": "string"},
-            "ras1d:flow_title": {"type": "string"},
-            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
+            "ras:flow_title": {"type": "string"},
+            "ras:program_version": {"$ref": "#/definitions/fields/properties/ras:program_version"},
             "href": {
               "type": "string",
               "pattern": ".*\\.[fF]\\d\\d$"
             },
-            "number_of_profiles": {"type": "integer"}
+            "ras:file": {
+              "type": "string",
+              "pattern": ".*\\.[fF]\\d\\d$"
+            },
+            "ras:number_of_profiles": {"type": "integer"}
           }
         },
-        "ras1d:quasi_unsteady_flow": {
+        "ras:quasi_unsteady_flow": {
           "type": "object",
           "description": "A HEC-RAS quasi-unsteady flow file.",
-          "required": [
-            "title",
-            "ras1d:flow_title",
-            "href"
-          ],
           "properties": {
             "title": {"type": "string"},
-            "ras1d:flow_title": {"type": "string"},
-            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
+            "ras:flow_title": {"type": "string"},
+            "ras:program_version": {"$ref": "#/definitions/fields/properties/ras:program_version"},
             "href": {
+              "type": "string",
+              "pattern": ".*\\.[qQ]\\d\\d$"
+            },
+            "ras:file": {
               "type": "string",
               "pattern": ".*\\.[qQ]\\d\\d$"
             }
           }
         },
-        "ras1d:unsteady_flow": {
+        "ras:unsteady_flow": {
           "type": "object",
           "description": "A HEC-RAS unsteady flow file.",
-          "required": [
-            "title",
-            "ras1d:flow_title",
-            "href"
-          ],
           "properties": {
-            "href": {"type": "string"},
-            "ras1d:flow_title": {"type": "string"},
-            "ras1d:program_version": {"$ref": "#/definitions/fields/properties/ras1d:program_version"},
-            "file": {
+            "ras:flow_title": {"type": "string"},
+            "ras:program_version": {"$ref": "#/definitions/fields/properties/ras:program_version"},
+            "href": {
+              "type": "string",
+              "pattern": ".*\\.[uU]\\d\\d$"
+            },
+            "ras:file": {
               "type": "string",
               "pattern": ".*\\.[uU]\\d\\d$"
             }

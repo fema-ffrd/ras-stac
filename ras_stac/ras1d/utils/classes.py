@@ -1,4 +1,5 @@
 import math
+import xml.etree.ElementTree as ET
 from collections import defaultdict
 from datetime import datetime
 from functools import cached_property
@@ -42,21 +43,21 @@ class GenericAsset(Asset):
 
     @property
     def short_summary(self):
-        return {"title": self.ras1d_title, "file": str(self.name)}
+        return {"title": self.ras_title, "file": str(self.name)}
 
 
 class ProjectAsset(GenericAsset):
 
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
-        self.extra_fields["ras1d:project_title"] = self.ras1d_title
-        self.extra_fields["ras1d:plan_current"] = self.plan_current
+        self.extra_fields["ras:project_title"] = self.ras_title
+        self.extra_fields["ras:plan_current"] = self.plan_current
 
         if not href.endswith(".hdf"):
             self.roles.append(MediaType.TEXT)
 
     @cached_property
-    def ras1d_title(self) -> str:
+    def ras_title(self) -> str:
         return search_contents(self.file_str, "Proj Title")
 
     @cached_property
@@ -100,16 +101,16 @@ class PlanAsset(GenericAsset):
 
     def __init__(self, href: str, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
-        self.extra_fields["ras1d:plan_title"] = self.ras1d_title
-        self.extra_fields["ras1d:short_id"] = self.short_id
-        self.extra_fields["ras1d:geometry"] = self.primary_geometry
-        self.extra_fields["ras1d:flow"] = self.primary_flow
+        self.extra_fields["ras:plan_title"] = self.ras_title
+        self.extra_fields["ras:short_id"] = self.short_id
+        self.extra_fields["ras:geometry"] = self.primary_geometry
+        self.extra_fields["ras:flow"] = self.primary_flow
 
         if not href.endswith(".hdf"):
             self.roles.append(MediaType.TEXT)
 
     @cached_property
-    def ras1d_title(self) -> str:
+    def ras_title(self) -> str:
         return search_contents(self.file_str, "Plan Title")
 
     @cached_property
@@ -133,25 +134,25 @@ class GeometryAsset(GenericAsset):
         super().__init__(href, *args, **kwargs)
         self.crs = kwargs.get("crs", None)
         self.extra_fields = {
-            "ras1d:geom_title": self.ras1d_title,
-            "ras1d:rivers": len(self.rivers),
-            "ras1d:reaches": len(self.reaches),
-            "ras1d:cross_sections": {
+            "ras:geom_title": self.ras_title,
+            "ras:rivers": len(self.rivers),
+            "ras:reaches": len(self.reaches),
+            "ras:cross_sections": {
                 "total": len(self.cross_sections),
                 "user_input_xss": len([xs for xs in self.cross_sections.values() if not xs.is_interpolated]),
                 "interpolated": len([xs for xs in self.cross_sections.values() if xs.is_interpolated]),
             },
-            "ras1d:culverts": len([s for s in self.structures.values() if s.type == 2]),
-            "ras1d:bridges": len([s for s in self.structures.values() if s.type == 3]),
-            "ras1d:multiple_openings": len([s for s in self.structures.values() if s.type == 4]),
-            "ras1d:inline_structures": len([s for s in self.structures.values() if s.type == 5]),
-            "ras1d:lateral_structures": len([s for s in self.structures.values() if s.type == 6]),
-            "ras1d:storage_areas": 0,
-            "ras1d:2d_flow_areas": {
+            "ras:culverts": len([s for s in self.structures.values() if s.type == 2]),
+            "ras:bridges": len([s for s in self.structures.values() if s.type == 3]),
+            "ras:multiple_openings": len([s for s in self.structures.values() if s.type == 4]),
+            "ras:inline_structures": len([s for s in self.structures.values() if s.type == 5]),
+            "ras:lateral_structures": len([s for s in self.structures.values() if s.type == 6]),
+            "ras:storage_areas": 0,
+            "ras:2d_flow_areas": {
                 "2d_flow_areas": 0,
                 "total_cells": 0,
             },
-            "ras1d:sa_connections": 0,
+            "ras:sa_connections": 0,
         }
         self.geometry = us_bounds
         self.bbox = [0, 0, 0, 0]
@@ -160,7 +161,7 @@ class GeometryAsset(GenericAsset):
             self.roles.append(MediaType.TEXT)
 
     @cached_property
-    def ras1d_title(self) -> str:
+    def ras_title(self) -> str:
         return search_contents(self.file_str, "Geom Title")
 
     @cached_property
@@ -243,11 +244,11 @@ class SteadyFlowAsset(GenericAsset):
 
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
-        self.extra_fields["ras1d:flow_title"] = self.ras1d_title
-        self.extra_fields["ras1d:number_of_profiles"] = self.n_profiles
+        self.extra_fields["ras:flow_title"] = self.ras_title
+        self.extra_fields["ras:number_of_profiles"] = self.n_profiles
 
     @property
-    def ras1d_title(self) -> str:
+    def ras_title(self) -> str:
         return search_contents(self.file_str, "Flow Title")
 
     @property
@@ -259,14 +260,20 @@ class QuasiUnsteadyFlowAsset(GenericAsset):
 
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
-        self.extra_fields["ras1d:flow_title"] = self.ras1d_title
+        self.extra_fields["ras:flow_title"] = self.ras_title
+
+    @cached_property
+    def ras_title(self) -> str:
+        tree = ET.parse(self.href)
+        file_info = tree.find("FileInfo")
+        return file_info["Title"]
 
 
 class UnsteadyFlowAsset(GenericAsset):
 
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
-        self.extra_fields["ras1d:flow_title"] = self.ras1d_title
+        self.extra_fields["ras:flow_title"] = self.ras_title
 
 
 ### Geometry Assets ##

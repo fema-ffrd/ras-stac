@@ -16,7 +16,7 @@ from ras_stac.ras1d.utils.classes import (
 from ras_stac.ras1d.utils.stac_utils import asset_factory
 
 
-class Ras1dModel(Item):
+class RasModel(Item):
     """An object representation of a HEC-RAS 1D model."""
 
     def __init__(self, prj_file: str) -> None:
@@ -33,28 +33,27 @@ class Ras1dModel(Item):
 
         self.extra_fields = {}
         self.properties = {}
-        self.properties["ras1d:project"] = self.project.name
-        self.properties["ras1d:project_title"] = self.project.ras1d_title
-        self.properties["ras1d:project_directory"] = str(Path(self.project.href).parent)
-        self.properties["ras1d:units"] = self.project.units
-        self.properties["ras1d:plan_current"] = self.plan_current.name
-        self.properties["ras1d:plan_files"] = (self.plan_summary,)
-        self.properties["ras1d:geometry_files"] = [i.short_summary for i in self.geometry_files]
-        self.properties["ras1d:steady_flow_files"] = [i.short_summary for i in self.steady_flow_files]
-        self.properties["ras1d:quasi_unsteady_flow_files"] = [i.short_summary for i in self.quasi_unsteady_flow_files]
-        self.properties["ras1d:unsteady_flow_files"] = [i.short_summary for i in self.unsteady_flow_files]
+        self.properties["ras:project"] = self.project.name
+        self.properties["ras:project_title"] = self.project.ras_title
+        self.properties["ras:project_directory"] = str(Path(self.project.href).parent)
+        self.properties["ras:units"] = self.project.units
+        self.properties["ras:plan_files"] = self.plan_summary
+        self.properties["ras:geometry_files"] = [i.short_summary for i in self.geometry_files]
+        self.properties["ras:steady_flow_files"] = [i.short_summary for i in self.steady_flow_files]
+        self.properties["ras:quasi_unsteady_flow_files"] = [i.short_summary for i in self.quasi_unsteady_flow_files]
+        self.properties["ras:unsteady_flow_files"] = [i.short_summary for i in self.unsteady_flow_files]
         geom_summary_fields = [
-            "ras1d:rivers",
-            "ras1d:reaches",
-            "ras1d:cross_sections",
-            "ras1d:culverts",
-            "ras1d:bridges",
-            "ras1d:multiple_openings",
-            "ras1d:inline_structures",
-            "ras1d:lateral_structures",
-            "ras1d:storage_areas",
-            "ras1d:2d_flow_areas",
-            "ras1d:sa_connections",
+            "ras:rivers",
+            "ras:reaches",
+            "ras:cross_sections",
+            "ras:culverts",
+            "ras:bridges",
+            "ras:multiple_openings",
+            "ras:inline_structures",
+            "ras:lateral_structures",
+            "ras:storage_areas",
+            "ras:2d_flow_areas",
+            "ras:sa_connections",
         ]
         for field in geom_summary_fields:
             self.properties[field] = self.geometry_current.extra_fields[field]
@@ -184,7 +183,7 @@ class Ras1dModel(Item):
             tmp_flow = self.assets[tmp_plan.primary_flow]
             tmp_obj = {
                 "current": f == self.project.plan_current,
-                "title": tmp_plan.ras1d_title,
+                "title": tmp_plan.ras_title,
                 "short_id": tmp_plan.short_id,
                 "file": str(tmp_plan.name),
                 "geometry": tmp_geom.short_summary,
