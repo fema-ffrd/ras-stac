@@ -55,8 +55,12 @@ class RasModel(Item):
             "ras:2d_flow_areas",
             "ras:sa_connections",
         ]
-        for field in geom_summary_fields:
-            self.properties[field] = self.geometry_current.extra_fields[field]
+        if self.geometry_current is not None:
+            for field in geom_summary_fields:
+                self.properties[field] = self.geometry_current.extra_fields[field]
+        else:
+            for field in geom_summary_fields:
+                self.properties[field] = None
         self.properties["start_datetime"] = self.start_datetime
         self.properties["end_datetime"] = self.start_datetime
         self.properties["datetime"] = self.start_datetime
@@ -133,7 +137,10 @@ class RasModel(Item):
 
     @property
     def plan_current(self) -> PlanAsset | None:
-        return self.assets[self.project.plan_current]
+        if self.project.plan_current in self.assets:
+            return self.assets[self.project.plan_current]
+        else:
+            return None
 
     @property
     def geometry_current(self) -> GeometryAsset | None:

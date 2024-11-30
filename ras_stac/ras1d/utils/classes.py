@@ -68,8 +68,11 @@ class ProjectAsset(GenericAsset):
 
     @cached_property
     def plan_current(self) -> str:
-        suffix = search_contents(self.file_str, "Current Plan", expect_one=True)
-        return self.name_from_suffix(suffix)
+        try:
+            suffix = search_contents(self.file_str, "Current Plan", expect_one=True)
+            return self.name_from_suffix(suffix)
+        except Exception:
+            return None
 
     @cached_property
     def plan_files(self) -> list[str]:
@@ -266,7 +269,7 @@ class QuasiUnsteadyFlowAsset(GenericAsset):
     def ras_title(self) -> str:
         tree = ET.parse(self.href)
         file_info = tree.find("FileInfo")
-        return file_info["Title"]
+        return file_info.attrib.get("Title")
 
 
 class UnsteadyFlowAsset(GenericAsset):
@@ -274,6 +277,10 @@ class UnsteadyFlowAsset(GenericAsset):
     def __init__(self, href, *args, **kwargs):
         super().__init__(href, *args, **kwargs)
         self.extra_fields["ras:flow_title"] = self.ras_title
+
+    @cached_property
+    def ras_title(self) -> str:
+        return search_contents(self.file_str, "Flow Title")
 
 
 ### Geometry Assets ##
