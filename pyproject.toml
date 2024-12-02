@@ -18,22 +18,26 @@ classifiers = [
 version = "0.1.1-beta.1"
 requires-python = ">=3.9"
 dependencies = ["boto3", "botocore", "fsspec", "mypy", "numpy", "papipyplug",
-               "python-dotenv", "pystac", "shapely", "rasterio", "rashdf"]
+               "python-dotenv", "pystac", "shapely", "rasterio", "rashdf", "mypy-boto3-s3"]
 
 [project.optional-dependencies]
-dev = ["pre-commit", "ruff"]
+dev = ["pre-commit", "ruff", "pytest", "moto", "jsonschema"]
 
 [project.urls]
 repository = "https://github.com/fema-ffrd/ras-stac"
 
-# TODO: add tests.
-# [tool.pytest.ini_options]
-# pythonpath = "src"
-# testpaths = "tests"
+#[project.scripts]
+#ras_stac = "cli:main"
 
-# TODO: linting for docstrings.
-# [tool.ruff.lint]
-# select = ["D"]
+#[tool.pytest.ini_options]
+#pythonpath = "ras_stac"
+#testpaths = "tests"
 
-# [tool.ruff.lint.pydocstyle]
-# convention = "numpy"
+#[tool.ruff.lint]
+#select = ["D"]
+
+#[tool.ruff.lint.pydocstyle]
+#convention = "numpy"
+
+#[tool.ruff.lint.per-file-ignores]
+#"tests/**" = ["D"]

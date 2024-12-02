@@ -1,16 +1,13 @@
 import json
 import shapely
 import pystac
-import sys
-
-sys.path.append("../")
 from ras_stac.utils.ras_utils import RasStacGeom, properties_to_isoformat, RasStacPlan
 
 ### Functions for test items creation
 
 
 def stac_item_to_json(item: pystac.Item, filename: str):
-    """Writes a STAC item to a JSON file."""
+    """Write a STAC item to a JSON file."""
     item_json = json.dumps(item.to_dict(), indent=4)
     with open(filename, "w") as f:
         f.write(item_json)
@@ -19,6 +16,7 @@ def stac_item_to_json(item: pystac.Item, filename: str):
 def create_perimeter_json(
     ras_stac_geom: RasStacGeom, output_json_fn: str = "test_perimeter.json"
 ):
+    """Create a JSON file with the spatial characteristics of a RAS geometry."""
     perimeter = ras_stac_geom.get_perimeter()
     geometry = json.loads(shapely.to_geojson(perimeter))
     bounds = perimeter.bounds

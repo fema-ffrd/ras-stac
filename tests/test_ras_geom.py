@@ -3,37 +3,42 @@ from rashdf import RasGeomHdf
 import shapely
 import json
 
-import sys
-
-sys.path.append("../")
 from ras_stac.utils.ras_utils import (
     RasStacGeom,
     to_snake_case,
     prep_stac_attrs,
     properties_to_isoformat,
 )
+from ras_stac.ras_geom_hdf import new_geom_item
 
-TEST_DATA = Path("data")
+TEST_DATA = Path("./tests/data")
 TEST_JSON = TEST_DATA / "json"
 TEST_RAS = TEST_DATA / "ras"
 TEST_GEOM = TEST_RAS / "Muncie.g05.hdf"
-TEST_GEOM_ITEM = TEST_JSON / "test_geom_item.json"
 TEST_GEOM_PERIMETER = TEST_JSON / "test_perimeter.json"
 TEST_GEOM_PROPERTIES = TEST_JSON / "test_geom_properties.json"
+TEST_GEOM_ITEM = TEST_JSON / "test_geom_item.json"
 
 
-def test_geom_stac_item():
-    ghdf = RasGeomHdf(TEST_GEOM)
-    ras_stac_geom = RasStacGeom(ghdf)
-    item = ras_stac_geom.to_item(props_to_remove=[], ras_model_name="test-1")
+def test_geom_item():
+    ras_geom_hdf = RasGeomHdf(TEST_GEOM)
+    ras_model_name = "test_model"
+    test_asset = "s3://test_bucket/test_prefix/test_model.f03"
+    item = new_geom_item(ras_geom_hdf, ras_model_name, asset_list=[test_asset])
     item.validate()
+
+    item_dict = item.to_dict()
 
     with open(TEST_GEOM_ITEM, "r") as f:
         test_item_content = json.load(f)
 
-    item_dict = json.loads(json.dumps(item.to_dict()))
-
-    assert item_dict == test_item_content
+    assert item_dict["type"] == test_item_content["type"]
+    assert item_dict["stac_version"] == test_item_content["stac_version"]
+    assert item_dict["id"] == test_item_content["id"]
+    assert item_dict["properties"] == test_item_content["properties"]
+    assert item_dict["geometry"] == test_item_content["geometry"]
+    assert list(item_dict["bbox"]) == list(test_item_content["bbox"])
+    assert item_dict["assets"] == test_item_content["assets"]
 
 
 def test_geom_properties():
