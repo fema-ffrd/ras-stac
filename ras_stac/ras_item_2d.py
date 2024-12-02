@@ -2,18 +2,20 @@ import json
 import io
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Union
+import pandas as pd
 from pystac import Item
 import pystac
 from pystac.extensions.projection import ProjectionExtension
 from pystac.extensions.storage import StorageExtension
 from pyproj import CRS
+import matplotlib.pyplot as plt
 from shapely.geometry import mapping
 import shapely
 from shapely.geometry import Polygon
 from plot_utils import create_model_thumbnail, get_gage_data, create_usgs_gage_links
 from rashdf import RasGeomHdf, RasPlanHdf
-from utils.s3_utils import save_bytes_s3
-from utils.class_utils import (
+from utils.s3_utils import save_bytes_s3, init_s3_resources
+from utils.ras_utils import (
     get_stac_geom_attrs,
     add_assets_to_item,
     cell_area_to_distance,
@@ -26,6 +28,7 @@ import re
 from utils.logger import setup_logging
 
 setup_logging()
+init_s3_resources()
 
 
 class RASItem(Item):
@@ -33,7 +36,7 @@ class RASItem(Item):
         self,
         hdf_path: str,
         item_id: str,
-        asset_list: Optional[List] = None,
+        asset_list: Optional[List] = [],
         item_props_to_remove: Optional[List] = [],
         item_props_to_add: Optional[Dict] = {},
         extensions: Optional[List] = None,
@@ -90,7 +93,10 @@ class RASItem(Item):
         stor_ext.apply(platform="AWS", region="us-east-1")
 
         if self.thumbnail_path:
-            self.export_thumbnail(self.thumbnail_path)
+            gages_df = get_gage_data(self.ras_hdf, crs=self.crs)
+            self.export_thumbnail(self.thumbnail_path, gages_df)
+            if gages_df is not None and not gages_df.empty:
+                self.item_links.extend(create_usgs_gage_links(gages_df))
 
         if self.asset_list:
             add_assets_to_item(self, self.asset_list, self.s3_resource)
@@ -105,16 +111,15 @@ class RASItem(Item):
         file_extension = Path(hdf_path).suffixes
         if re.match(r"\.g\d{2}", file_extension[0]):
             self.file_type = "geometry"
-            return RasGeomHdf(hdf_path)
+            return RasGeomHdf.open_uri(hdf_path)
         elif re.match(r"\.p\d{2}", file_extension[0]):
             self.file_type = "plan"
-            return RasPlanHdf(hdf_path)
+            return RasPlanHdf.open_uri(hdf_path)
         else:
             raise ValueError(f"Unknown HDF file type for path: {hdf_path}")
 
-    def export_thumbnail(self, thumb_path: str) -> None:
+    def export_thumbnail(self, thumb_path: str, gages_df: pd.DataFrame) -> None:
         """Generate and save item thumbnail."""
-        gages_df = get_gage_data(self.ras_hdf, crs=self.crs)
         thumb = create_model_thumbnail(
             self.ras_hdf, gages_df=gages_df, title=self.item_id, crs=self.crs
         )
@@ -128,9 +133,9 @@ class RASItem(Item):
         else:
             thumb.savefig(thumb_path, dpi=80, bbox_inches="tight")
 
+        plt.close(thumb)
+
         self.asset_list.append(thumb_path)
-        if gages_df:
-            self.item_links.extend(create_usgs_gage_links(gages_df))
 
     def _get_geom_attrs(self) -> Dict:
         """
@@ -257,7 +262,7 @@ test_links = [{"href": "https://example.com", "rel": "test", "title": "test_titl
 test_href = "https://example.com/item.json"
 
 ras_item = RASItem(
-    hdf_path=plan_hdf_path,
+    hdf_path=geom_hdf_path,
     item_id=item_id,
     asset_list=asset_list,
     item_href=test_href,

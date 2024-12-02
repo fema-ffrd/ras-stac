@@ -12,7 +12,7 @@ import logging
 
 
 def read_model_plot_data(ras_hdf: Union[RasPlanHdf, RasGeomHdf]):
-    """Attempt to read breaklines, boundary condition lines, and mesh polygons from the RAS HDF dataset for thumbnail."""
+    """Read breaklines, boundary condition lines, and mesh polygons from the RAS HDF dataset for thumbnail."""
 
     try:
         model_breaklines = ras_hdf.breaklines()
@@ -212,12 +212,11 @@ def get_gage_data(
         logging.info("No reference lines found in the model.")
         return None
 
-    ref_line = ref_line.to_crs(crs)
-
     if len(ref_line) == 0:
         logging.info("No reference lines found in the model.")
         return None
 
+    ref_line = ref_line.to_crs(crs)
     all_usgs_gages = pd.DataFrame()
 
     for _, row in ref_line.iterrows():
