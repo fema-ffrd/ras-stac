@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "****",
+  "title": "HEC-RAS HDF Item",
+  "description": "HEC-RAS HDF Item Schema",
+  "oneOf": [
+    {
+      "allOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "properties"
+          ],
+          "properties": {
+            "type": {
+              "const": "Feature"
+            },
+            "properties": {
+              "allOf": [
+                {
+                  "$comment": "Required fields for Item properties",
+                  "required": [
+                    "file_type",
+                    "file_version",
+                    "units_system"
+                  ]
+                },
+                {
+                  "$ref": "#/definitions/fields"
+                }
+              ]
+            },
+            "assets": {
+              "$comment": "Optional fields in Item Assets",
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/fields"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "definitions": {
+    "fields": {
+      "$comment": "Common fields for RAS-HDF Item properties and assets",
+      "type": "object",
+      "properties": {
+        "file_type": {
+          "type": "string",
+          "description": "Type of the HEC-RAS file (ex. HEC-RAS Results)."
+        },
+        "file_version": {
+          "type": "string",
+          "description": "Version of the HEC-RAS file."
+        },
+        "units_system": {
+          "type": "string",
+          "description": "Unit system used (ex. US Customary)."
+        },
+        "plan_information:project_filename": {
+          "type": ["string", "null"],
+          "description": "Project file path."
+        },
+        "plan_parameters:2d_equation_set": {
+          "type": ["string", "null"],
+          "description": "2D model equation set used."
+        },
+        "plan_parameters:2d_names": {
+          "type": ["string", "null"],
+          "description": "2D model area names."
+        },
+        "structures:connection_count": {
+          "type": ["integer", "null"],
+          "description": "Number of connections."
+        },
+        "structures:bridgeculvert_count": {
+          "type": ["integer", "null"],
+          "description": "Number of bridge/culverts."
+        },
+        "structures:inline_structure_count": {
+          "type": ["integer", "null"],
+          "description": "Number of inline structures."
+        },
+        "structures:lateral_structure_count": {
+          "type": ["integer", "null"],
+          "description": "Number of lateral structures."
+        },
+        "2d_flow_areas:cell_average_size": {
+          "type": ["number", "null"],
+          "description": "Average mesh cell size"
+        },
+        "2d_flow_areas:cell_maximum_size": {
+          "type": ["number", "null"],
+          "description": "Maximum mesh cell size."
+        },
+        "2d_flow_areas:cell_minimum_size": {
+          "type": ["number", "null"],
+          "description": "Minimum mesh cell size."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
