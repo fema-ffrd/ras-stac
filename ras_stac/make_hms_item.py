@@ -514,13 +514,13 @@ def create_hms_stac_item(
     item.validate()
 
     # write the item to the stac_output_prefix
-    copy_item_to_s3(item, stac_output_prefix, s3_client)
+    # copy_item_to_s3(item, stac_output_prefix, s3_client)
 
     # # write the item locally
-    # item_path = f"{model_name}.json"
-    # stac_dict = item.to_dict()
-    # with open(item_path, "w") as f:
-    #     json.dump(stac_dict, f)
+    item_path = f"{model_name}.json"
+    stac_dict = item.to_dict()
+    with open(item_path, "w") as f:
+        json.dump(stac_dict, f)
 
 
 
