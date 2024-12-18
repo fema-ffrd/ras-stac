@@ -10,3 +10,4 @@ rashdf==0.2.2
 s3fs==2024.6.0
 pytest==8.2.2
 jsonschema==4.22.0
+moto==5.0.9
