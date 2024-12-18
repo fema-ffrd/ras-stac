@@ -1,38 +1,49 @@
-import os, sys
-from pystac import Item, Asset, Link
+import json
+import os
+import sqlite3
+import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
-import tempfile
-import fsspec
-import sqlite3
-import contextily as ctx
-import matplotlib.pyplot as plt
-import geopandas as gpd
-from shapely import wkb
-
-from utils.s3_utils import *
-from utils.s3_utils import init_s3_resources
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 import boto3
-# import json
-def copy_thumbnail_to_s3(thumbnail_path, bucket, thumbnail_prefix, s3_client):
-        """Copy the thumbnail to s3
+import contextily as ctx
+import fsspec
+import geopandas as gpd
+import matplotlib.pyplot as plt
+from pystac import Asset, Item, Link
+from shapely import wkb
 
-        args
-            thumbnail_path (str): local path to the thumbnail
-            bucket (str): s3 bucket name
-            thumbnail_prefix (str): s3 prefix for the thumbnail
-            s3_client (boto3.client): s3 client
-        """
+from utils.s3_utils import copy_item_to_s3, init_s3_resources
 
-        # upload the thumbnail to s3
-        try:
-            s3_client.upload_file(thumbnail_path, bucket, thumbnail_prefix)
-        except Exception as e:
-            print(f"Error uploading thumbnail to s3: {e}")
-            sys.exit(1)
 
-def define_hms_file_types():
+def copy_thumbnail_to_s3(
+    thumbnail_path: str, s3_uri: str, s3_client: boto3.client
+) -> None:
+    """Copy the thumbnail to s3
+
+    args
+        thumbnail_path (str): local path to the thumbnail
+        s3_uri (str): full s3 uri for the thumbnail (e.g., s3://bucket/prefix)
+        s3_client (boto3.client): s3 client
+    """
+
+    # Parse the S3 URI
+    parsed_uri = urlparse(s3_uri)
+    bucket = parsed_uri.netloc
+    thumbnail_prefix = parsed_uri.path.lstrip('/')
+
+    # upload the thumbnail to s3
+    try:
+        s3_client.upload_file(thumbnail_path, bucket, thumbnail_prefix)
+    except Exception as e:
+        print(f"Error uploading thumbnail to s3: {e}")
+        sys.exit(1)
+
+
+def define_hms_file_types() -> Dict[str, Dict[str, Any]]:
     """Define the HMS file types and their descriptions in a dictionary for use in STAC item creation"""
 
     # setup dictionary of hms file extensions, types, and descriptions
@@ -126,7 +137,9 @@ def define_hms_file_types():
     return hms_file_types
 
 
-def list_keys(s3_client, bucket, prefix, suffix=""):
+def list_keys(
+    s3_client: boto3.client, bucket: str, prefix: str, suffix: str = ""
+) -> List[str]:
     """List keys in an S3 bucket with a given prefix and suffix
 
     args
@@ -151,7 +164,9 @@ def list_keys(s3_client, bucket, prefix, suffix=""):
     return keys
 
 
-def extract_geom_bbox(bucket, sqlite_key, spatial_ref):
+def extract_geom_bbox(
+    bucket: str, sqlite_key: str, spatial_ref: str
+) -> Tuple[gpd.GeoDataFrame, Dict[str, Any], List[float]]:
     """Extract geometry and bbox from an HMS model's SQLite file
     
     args
@@ -169,12 +184,9 @@ def extract_geom_bbox(bucket, sqlite_key, spatial_ref):
         # open the sqlite file
         uri = f"s3://{bucket}/{sqlite_key}"
         connection = open_sqlite_uri(uri)
-        
+
         # retrieve the subbasins2d table, then the geometry field
         cursor = connection.cursor()
-        # Print available tables
-        tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
-        print(f"Tables: {tables}")
         cursor.execute("SELECT GEOMETRY FROM subbasin2d")
         geometry_data = cursor.fetchall()
 
@@ -188,7 +200,6 @@ def extract_geom_bbox(bucket, sqlite_key, spatial_ref):
         coordinates = [list(map(list, gdf.geometry[0].exterior.coords))]
         geometry = {
             "type": "Polygon",
-        #    "coordinates": gdf.geometry[0].exterior.coords.xy,
             "coordinates": coordinates,
         }
 
@@ -198,49 +209,20 @@ def extract_geom_bbox(bucket, sqlite_key, spatial_ref):
     except Exception as e:
         print(f"Error extracting geometry and bbox: {e}")
         return None, None, None
-    
-
-# def upload_thumbnail_to_arcopendata(thumbnail_path):
-#     """Upload the thumbnail to the arcopendata s3 bucket
-    
-#     args
-#         thumbnail_path (str): local path to the thumbnail
-    
-#     returns
-#         thumbnail_uri (str): URI of the uploaded thumbnail
-#     """
-#     try:
-#         # define the ArcopenData s3 bucket and thumbnail path
-#         arcopendata_bucket = "arcopendata"
-#         thumbnail_s3_key = "thumbnail.png"
-
-#         # Create an S3 client
-#         s3_client = boto3.client("s3")
-
-#         # upload the thumbnail to s3
-#         s3_client.upload_file(thumbnail_path, arcopendata_bucket, thumbnail_s3_key)
-#         thumbnail_uri = f"https://{arcopendata_bucket}.s3.us-west-2.amazonaws.com/{thumbnail_s3_key}"
-#         print(f"Thumbnail uploaded to: {thumbnail_uri}")
-#         return thumbnail_uri
-    
-#     except Exception as e:
-#         print(f"Error uploading thumbnail to s3: {e}")
-        
-
-#     return None
 
 
-def create_hms_thumbnail(bucket, sqlite_key):
+def create_hms_thumbnail(
+        bucket: str, sqlite_key: str
+) -> Optional[str]:
     """Generate a thumbnail image for an HMS model using the SQLite's geometry data
     
     args
         bucket (str): S3 bucket name
-        sqlite_key (str): S3 key to the SQLite file
+        sqlite_key (str): S3 key to the hms SQLite file
     
     returns
-        None
+        thumbnail_path (str): local path to the thumbnail image (written to local cwd)
     """
-
 
     try:
         # open the sqlite file
@@ -261,33 +243,29 @@ def create_hms_thumbnail(bucket, sqlite_key):
             gdf.crs = spatial_ref
         else:
             # Set the crs to EPSG:4326 if spatial reference is not found
-            gdf.crs = "EPSG:4326"
-        
+            gdf.crs = 4326
+
         # Plot the GeoDataFrame with a basemap
         ax = gdf.plot(figsize=(10, 10), alpha=0.5, edgecolor="k")
         ctx.add_basemap(ax, crs=gdf.crs.to_string())
 
         # Save the plot as a local file
-        thumbnail_path = 'thumbnail.png'
-        plt.savefig(thumbnail_path, bbox_inches='tight')
+        thumbnail_path = "thumbnail.png"
+        plt.savefig(thumbnail_path, bbox_inches="tight")
         plt.close()
 
-        # Hardcode the HTTP URI of the uploaded thumbnail
-        thumbnail_uri = "https://arcopendata.s3.us-west-2.amazonaws.com/thumbnail.png"
-        # thumbnail_uri = upload_thumbnail_to_arcopendata(thumbnail_path)
         # Return the local file path of the thumbnail
-        return thumbnail_uri, thumbnail_path
+        return thumbnail_path
 
     except Exception as e:
         print(f"Error generating thumbnail: {e}")
+        print("Consider retrying again (network issues may have caused the error)")
         return None
 
 
-
-
-
-
-def open_sqlite_uri(uri: str, fsspec_kwargs: dict = {}, sqlite_kwargs: dict = {}):
+def open_sqlite_uri(
+    uri: str, fsspec_kwargs: Dict = {}, sqlite_kwargs: Dict = {}
+) -> sqlite3.Connection:
     """Open a SQLite file from a URI.
     
     args
@@ -315,7 +293,7 @@ def open_sqlite_uri(uri: str, fsspec_kwargs: dict = {}, sqlite_kwargs: dict = {}
     return connection
 
 
-def get_hms_spatial_ref(bucket, sqlite_key):
+def get_hms_spatial_ref(bucket: str, sqlite_key: str) -> str:
     """Get the spatial reference from HMS model's sqlite file
     
     args
@@ -342,7 +320,9 @@ def get_hms_spatial_ref(bucket, sqlite_key):
     return spatial_ref
 
 
-def open_hms_txt_uri(uri: str, fsspec_kwargs: dict = {}):
+def open_hms_txt_uri(
+    uri: str, fsspec_kwargs: dict = {}
+) -> Optional[fsspec.core.OpenFile]:
     """Open a text file from a URI.
     
     args
@@ -362,13 +342,13 @@ def open_hms_txt_uri(uri: str, fsspec_kwargs: dict = {}):
         print(f"Error opening hms control file: {e}")
         remote_file = None
         sys.exit(1)
-    
 
 
-def get_hms_version(bucket, control_key):
+def get_hms_version(bucket: str, control_key: str) -> Optional[str]:
     """Get the HMS version from the control file
     
     args
+        bucket (str): S3 bucket name
         control_key (str): S3 key to the control file
     
     returns
@@ -398,7 +378,7 @@ def get_hms_version(bucket, control_key):
     return hms_version
 
 
-def get_hms_terrain(bucket, terrain_key):
+def get_hms_terrain(bucket: str, terrain_key: str) -> Optional[str]:
     """Get the terrain file from the HMS model's .terrain file
     
     args
@@ -416,12 +396,11 @@ def get_hms_terrain(bucket, terrain_key):
         # Read the contents of the file
         with terrain_file as f:
             contents = f.read()
-        
+
         terrain_file_name = None
 
         # retrieve the terrain file name (prefaced by "Elevation File Name:")
         for line in contents.split("\n"):
-            print(f"terrain file line: {line}")
             if "Elevation File Name:" in line:
                 terrain_file_name = line.split(":")[1].strip()
 
@@ -433,14 +412,14 @@ def get_hms_terrain(bucket, terrain_key):
 
 
 def create_hms_stac_item(
-    model_name,
-    bucket_name,
-    model_prefix,
-    parent_collection,
-    stac_output_prefix,
-    stac_thumbnail_prefix,
-    sqlite_key
-):
+    model_name: str,
+    bucket_name: str,
+    model_prefix: str,
+    parent_collection: str,
+    stac_output_uri: str,
+    stac_thumbnail_uri: str,
+    sqlite_key: str,
+) -> None:
     """Create a STAC item for a given HMS model and upload to s3
     
     args
@@ -448,8 +427,9 @@ def create_hms_stac_item(
         bucket_name (str): S3 bucket name
         model_prefix (str): S3 prefix where model files are stored
         parent_collection (str): URL to the stac item's parent collection
-        stac_output_prefix (str): S3 prefix where STAC item will be uploaded
-        stac_thumbnail_prefix (str): S3 prefix where STAC thumbnail will be uploaded
+        stac_output_uri (str): S3 prefix where STAC item will be uploaded
+        stac_thumbnail_uri (str): S3 prefix where STAC thumbnail will be uploaded
+        sqlite_key (str): s3 key to the model's sqlite file
         
     returns
         None
@@ -459,7 +439,6 @@ def create_hms_stac_item(
 
     # init s3 resources
     session, s3_client, s3_resource = init_s3_resources()
-    # session, s3_client, s3_resource = init_s3_resources_dotenv()
 
     # list keys in model folder
     try:
@@ -486,22 +465,20 @@ def create_hms_stac_item(
         spatial_ref = None
 
     # extract geometry and bbox from sqlite file
-    gdf, geometry, bbox = extract_geom_bbox(bucket_name, sqlite_key, spatial_ref)
+    _, geometry, bbox = extract_geom_bbox(bucket_name, sqlite_key, spatial_ref)
 
     # generate the thumbnail
-    thumbnail_uri, thumbnail_path = create_hms_thumbnail(bucket_name, sqlite_key)
+    thumbnail_path = create_hms_thumbnail(
+        bucket_name, sqlite_key
+    )
 
-    print(f"thumbnail_uri: {thumbnail_uri}")
-
-    
     # Get the HMS version
     control_files = [key for key in hms_keys if key.endswith(".control")]
     if control_files:
         control_key = control_files[0]
-        hms_version = get_hms_version(bucket_name, control_key) 
+        hms_version = get_hms_version(bucket_name, control_key)
     else:
         hms_version = None
-
 
     # Get the HMS terrain file
     terrain_files = [key for key in hms_keys if key.endswith(".terrain")]
@@ -510,8 +487,6 @@ def create_hms_stac_item(
         terrain_file_name = get_hms_terrain(bucket_name, terrain_key)
     else:
         terrain_file_name = None
-
-
 
     item_id = model_name
     datetime_var = datetime.now()
@@ -528,21 +503,19 @@ def create_hms_stac_item(
         bbox=bbox,
         datetime=datetime_var,
         properties=properties,
-        collection=parent_collection
+        collection=parent_collection,
     )
 
-    if thumbnail_uri:
+    if thumbnail_path:
         item.add_asset(
             "thumbnail",
             Asset(
-                href=thumbnail_uri,
+                href=stac_thumbnail_uri,
                 media_type="image/png",
-                roles=["thumbnail"],
+                roles=["Thumbnail"],
                 title="Thumbnail Image",
             ),
         )
-
-
 
     # add hms assets to item
     hms_assets_dict = define_hms_file_types()
@@ -592,38 +565,32 @@ def create_hms_stac_item(
 
             item.add_asset(asset_name, asset)
 
-    # add misc assets to the item
-    # item.add_asset("thumbnail", Asset({})) # TODO: add thumbnail asset
-    # item.add_asset("title", Asset({})) # TODO: add title asset
+    
+    # Add title to stac item
+    item.common_metadata.title = model_name
+
 
     # add links to the item
     item.add_link(Link("collection", parent_collection))
     item.add_link(Link("parent", s3_uri))  # TODO: confirm what parent link should be
     # item.add_link(Link("root", "")) # TODO: confirm what root link should be
-    item.add_link(Link("self", stac_output_prefix))
+    item.add_link(Link("self", stac_output_uri))
 
     # validate the item, returning an error if not valid
     item.validate()
 
-
-    
-
-    # write the item to the stac_output_prefix
-    try: 
-        copy_item_to_s3(item, stac_output_prefix, s3_client)
-        copy_thumbnail_to_s3(thumbnail_path, bucket_name, thumbnail_uri, s3_client)
+    # write the items to the stac_output_uri. TODO: test with correct S3 privileges
+    try:
+        copy_item_to_s3(item, stac_output_uri, s3_client)
+        copy_thumbnail_to_s3(thumbnail_path, bucket_name, stac_thumbnail_uri, s3_client) 
     except Exception as e:
         print(f"Error copying item to s3: {e}")
-        #sys.exit(1)
-    
-    # # write the item locally
-    item_path = f"{model_name}.json"
-    stac_dict = item.to_dict()
-    with open(item_path, "w") as f:
-        json.dump(stac_dict, f)
 
-
-
+    # # write the item locally - TODO: remove once tested with correct S3 privileges
+    # item_path = f"{model_name}.json"
+    # stac_dict = item.to_dict()
+    # with open(item_path, "w") as f:
+    #     json.dump(stac_dict, f)
 
 
 if __name__ == "__main__":
@@ -643,27 +610,24 @@ if __name__ == "__main__":
     )
 
     # s3 outputs
-    png_output_s3_path = (
+    thumbnail_output_s3_uri = (
         f"s3://kanawha-pilot/stac/Kanawha-0505/thumbnails/{model_name}.png"
     )
-    stac_item_s3_path = (
+    stac_item_output_s3_uri = (
         f"s3://kanawha-pilot/stac/Kanawha-0505/model_items/{model_name}.json"
     )
 
-    # ITEM CREATION
-    # Define the sqlite_key
-    sqlite_key = 'FFRD_Kanawha_Compute/hms/KanawhaCWMS___1996.sqlite'
-    try:
-        create_hms_stac_item(
-            model_name,
-            bucket_name,
-            model_prefix,
-            parent_collection,
-            stac_item_s3_path,
-            png_output_s3_path,
-            sqlite_key,
-        )
-        print(f"Successfully created HMS STAC item for {model_name}")
-    except Exception as e:
-        print(f"Error creating HMS STAC item: {e}")
-        sys.exit(1)
+    sqlite_key = "FFRD_Kanawha_Compute/hms/KanawhaCWMS___1996.sqlite"
+
+    create_hms_stac_item(
+        model_name,
+        bucket_name,
+        model_prefix,
+        parent_collection,
+        stac_item_output_s3_uri,
+        thumbnail_output_s3_uri,
+        sqlite_key
+    )
+
+    print(f"Successfully created HMS STAC item for {model_name}")
+
