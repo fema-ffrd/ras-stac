@@ -8,12 +8,10 @@ import requests
 
 def file_location(fpath: str, exists: bool = True) -> str:
     """Check if file is local or on s3."""
-    if os.path.exists(os.path.dirname(fpath)):
-        return "local"
-    elif fpath.startswith("s3://"):
+    if fpath.startswith("s3://"):
         return "s3"
     else:
-        raise ValueError(f"Path {fpath} is neither on local machine nor an S3 URL")
+        return "local"
 
 
 def gather_dir_local(in_path: str) -> list:
