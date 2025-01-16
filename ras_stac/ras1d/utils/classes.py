@@ -9,9 +9,6 @@ import geopandas as gpd
 import pandas as pd
 import pystac
 from pyproj import CRS
-from shapely import make_valid, union_all
-from shapely.geometry import LineString, MultiPolygon, Point, Polygon, shape
-
 from ras_stac.ras1d.data.us_geom import us_bounds
 from ras_stac.ras1d.utils.common import file_location
 from ras_stac.ras1d.utils.ras_utils import (
@@ -24,6 +21,8 @@ from ras_stac.ras1d.utils.ras_utils import (
     text_block_from_start_str_to_empty_line,
 )
 from ras_stac.ras1d.utils.s3_utils import key_metadata, split_s3_key, str_from_s3
+from shapely import make_valid, union_all
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon, shape
 
 
 # Decorator functions
@@ -141,8 +140,11 @@ class ThumbAsset(GenericAsset):
 
     def to_stac(self):
         """Generate STAC asset from class info"""
-        bucket, key = split_s3_key(self.url)
-        public_url = f"https://{bucket}.s3.amazonaws.com/{key}"
+        if file_location(self.url) == "s3":
+            bucket, key = split_s3_key(self.url)
+            public_url = f"https://{bucket}.s3.amazonaws.com/{key}"
+        else:
+            public_url = self.url
 
         asset = pystac.Asset(
             href=public_url,
