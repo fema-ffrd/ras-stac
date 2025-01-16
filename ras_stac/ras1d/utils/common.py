@@ -26,7 +26,6 @@ def gather_dir_local(in_path: str) -> list:
 def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
     """Create the metadata table in the geopackage."""
     with sqlite3.connect(gpkg_path) as conn:
-        string = ""
         curs = conn.cursor()
         curs.execute("DROP TABLE IF Exists metadata")
         curs.execute("CREATE TABLE IF NOT EXISTS metadata (key, value);")
