@@ -5,13 +5,12 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from pyproj import CRS
 from pystac.extensions.projection import AssetProjectionExtension
 from pystac.extensions.storage import StorageExtension
 from pystac.item import Item
-from shapely import to_geojson
-
 from ras_stac.ras1d.utils.classes import (
     GenericAsset,
     GeometryAsset,
@@ -36,6 +35,7 @@ from ras_stac.ras1d.utils.s3_utils import (
     str_from_s3,
 )
 from ras_stac.ras1d.utils.stac_utils import generate_asset
+from shapely import to_geojson
 
 
 class Converter:
@@ -55,7 +55,7 @@ class Converter:
 
     def export_stac(self, output_path: str) -> None:
         """Export the converted STAC item."""
-        out_obj = json.dumps(self.stac_item.to_dict()).encode()
+        out_obj = json.dumps(self.stac_item.to_dict(), indent=4).encode()
         if file_location(output_path) == "local":
             with open(output_path, "wb") as f:
                 f.write(out_obj)
@@ -77,6 +77,7 @@ class Converter:
             save_bytes_s3(img_data, thumb_path)
 
         self.assets.append(ThumbAsset(thumb_path))
+        plt.close(thumb)
 
     @property
     def stac_item(self) -> dict:
