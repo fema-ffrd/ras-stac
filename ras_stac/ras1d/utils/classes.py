@@ -185,6 +185,14 @@ class ProjectAsset(GenericAsset):
         """Title of the HEC-RAS project."""
         return search_contents(self.file_str.splitlines(), "Proj Title")
 
+    @property
+    def units(self):
+        """Units of the HEC-RAS project."""
+        if "English Units" in self.file_str:
+            return "English"
+        else:
+            return "Metric"
+
 
 class PlanAsset(GenericAsset):
 
@@ -579,14 +587,6 @@ class GeometryAsset(GenericAsset):
         else:
             return None
         return
-
-    @property
-    def units(self):
-        """Units of the HEC-RAS project."""
-        if "English Units" in self.file_str:
-            return "English"
-        else:
-            return "Metric"
 
     def get_river_miles(self) -> float:
         """Compute the total length of the river centerlines in miles."""

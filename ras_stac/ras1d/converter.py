@@ -153,7 +153,7 @@ class Converter:
         properties = {
             "model_name": self.idx,
             "ras_version": self.primary_geometry.ras_version,
-            "ras_units": self.primary_geometry.units,
+            "ras_units": self.ras_prj_file.units,
             "project_title": self.ras_prj_file.title,
             "plans": {a.title: a.suffix for a in self.assets if isinstance(a, PlanAsset)},
             "geometries": {a.title: a.suffix for a in self.assets if isinstance(a, GeometryAsset)},
