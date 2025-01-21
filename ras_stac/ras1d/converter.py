@@ -269,7 +269,7 @@ class Converter:
         meta["ras_version"] = self.primary_geometry.ras_version
         flow_changes = pd.DataFrame(self.primary_flow.flow_change_locations)
         meta["profile_names"] = "\n".join(flow_changes["profile_names"].iloc[0])
-        meta["units"] = self.primary_geometry.units
+        meta["units"] = self.ras_prj_file.units
 
         return meta
 
