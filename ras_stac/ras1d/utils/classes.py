@@ -21,7 +21,7 @@ from ras_stac.ras1d.utils.ras_utils import (
     text_block_from_start_str_to_empty_line,
 )
 from ras_stac.ras1d.utils.s3_utils import key_metadata, split_s3_key, str_from_s3
-from shapely import make_valid, union_all
+from shapely import GeometryCollection, make_valid, union_all
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon, shape
 
 
@@ -505,6 +505,7 @@ class GeometryAsset(GenericAsset):
         assert not all(
             [i.is_empty for i in xs_df.geometry]
         ), "No valid cross-sections found.  Possibly non-georeferenced model"
+        assert len(xs_df) > 1, "Only one valid cross-section found."
         for river_reach in xs_df["river_reach"].unique():
             xs_subset = xs_df[xs_df["river_reach"] == river_reach]
             points = xs_subset.boundary.explode(index_parts=True).unstack()
@@ -518,9 +519,26 @@ class GeometryAsset(GenericAsset):
         if self.junction_gdf is not None:
             for _, j in self.junction_gdf.iterrows():
                 polygons.append(self.junction_hull(j))
-        out_hull = [union_all([make_valid(p) for p in polygons])]
+        out_hull = self.clean_polygons(polygons)
         self._concave_hull = gpd.GeoDataFrame({"geometry": out_hull}, geometry="geometry", crs=self.crs)
         return self._concave_hull
+
+    def clean_polygons(self, polygons: list) -> list:
+        """Make polygons valid and remove geometry collections."""
+        all_valid = []
+        for p in polygons:
+            valid = make_valid(p)
+            if isinstance(valid, GeometryCollection):
+                polys = []
+                for i in valid.geoms:
+                    if isinstance(i, MultiPolygon):
+                        polys.extend([j for j in i.geoms])
+                    elif isinstance(i, Polygon):
+                        polys.append(i)
+                all_valid.extend(polys)
+            else:
+                all_valid.append(valid)
+        return [union_all(all_valid)]
 
     def junction_hull(self, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
         """Compute and return the concave hull (polygon) for a juction."""
