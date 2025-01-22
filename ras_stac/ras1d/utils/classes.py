@@ -9,7 +9,6 @@ import geopandas as gpd
 import pandas as pd
 import pystac
 from pyproj import CRS
-from ras_stac.ras1d.data.us_geom import us_bounds
 from ras_stac.ras1d.utils.common import file_location
 from ras_stac.ras1d.utils.ras_utils import (
     check_xs_direction,
@@ -22,7 +21,7 @@ from ras_stac.ras1d.utils.ras_utils import (
 )
 from ras_stac.ras1d.utils.s3_utils import key_metadata, split_s3_key, str_from_s3
 from shapely import GeometryCollection, make_valid, union_all
-from shapely.geometry import LineString, MultiPolygon, Point, Polygon, shape
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 
 
 # Decorator functions
@@ -310,12 +309,8 @@ class UnsteadyFlowAsset(GenericAsset):
 class NullGeometryAsset(GenericAsset):
 
     def __init__(self):
-        features = us_bounds["features"]
-        geometries = [shape(feature["geometry"]) for feature in features]
-        properties = [feature["properties"] for feature in features]
-        gdf = gpd.GeoDataFrame(properties, geometry=geometries, crs="epsg:4326")
-        self.gdfs = {"null": gdf}
-        self.concave_hull = gdf
+        self.gdfs = None
+        self.concave_hull = gpd.GeoDataFrame({"geometry": [Polygon()]}, crs="4326")
 
     def __getattr__(self, name):
         # Return None if the attribute is not found
