@@ -120,7 +120,7 @@ class Converter:
     def get_bbox(self, crs: str = None):
         """Return bbox for all geometry components in the primary geometry"""
         if self.primary_geometry.gdfs is None:
-            return [0, 0, 0, 0]
+            return [0, 0, 1, 1]
         all_geom = pd.concat(self.primary_geometry.gdfs)
         if crs:
             all_geom = all_geom.to_crs(crs)

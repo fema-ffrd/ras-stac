@@ -310,7 +310,8 @@ class NullGeometryAsset(GenericAsset):
 
     def __init__(self):
         self.gdfs = None
-        self.concave_hull = gpd.GeoDataFrame({"geometry": [Polygon()]}, crs="4326")
+        coords = ((0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0))
+        self.concave_hull = gpd.GeoDataFrame({"geometry": [Polygon(coords)]}, crs="4326")
 
     def __getattr__(self, name):
         # Return None if the attribute is not found
