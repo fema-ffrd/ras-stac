@@ -1,6 +1,5 @@
 import math
 import os
-import re
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -261,18 +260,22 @@ class SteadyFlowAsset(GenericAsset):
 
                 if "River Rch & RM" in line:
                     break
-                nums = re.findall(r"\S+\s+|\S+$", line.strip(" "))
-                flows.extend([float(j) for j in nums])
-                if len(flows) == self.n_profiles:
-                    flow_change_locations.append(
-                        {
-                            "river": river,
-                            "reach": reach.rstrip(" "),
-                            "rs": float(rs),
-                            "flows": flows,
-                            "profile_names": self.profile_names,
-                        }
-                    )
+
+                for i in range(0, len(line), 8):
+                    tmp_str = line[i : i + 8].lstrip(" ")
+                    if len(tmp_str) == 0:
+                        break
+                    flows.append(float(tmp_str))
+                    if len(flows) == self.n_profiles:
+                        flow_change_locations.append(
+                            {
+                                "river": river,
+                                "reach": reach.rstrip(" "),
+                                "rs": float(rs),
+                                "flows": flows,
+                                "profile_names": self.profile_names,
+                            }
+                        )
                     if len(flow_change_locations) == self.n_flow_change_locations:
                         return flow_change_locations
 
