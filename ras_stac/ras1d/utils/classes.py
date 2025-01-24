@@ -290,22 +290,6 @@ class UnsteadyFlowAsset(GenericAsset):
     def title(self):
         return search_contents(self.file_str.splitlines(), "Flow Title", expect_one=True)
 
-    @property
-    def n_profiles(self):
-        return len(self.profile_names)
-
-    @property
-    @cache_data
-    def profile_names(self):
-        return search_contents(self.file_str.splitlines(), "Profile Names").split(",")
-
-    @property
-    def _extra_fields(self):
-        ex = {}
-        ex["number_of_profiles"] = self.n_profiles
-        ex["number_of_profiles"] = self.profile_names
-        return ex
-
 
 class NullGeometryAsset(GenericAsset):
 
