@@ -246,7 +246,8 @@ class SteadyFlowAsset(GenericAsset):
     def flow_change_locations(self):
         """Retrieve flow change locations."""
         flow_change_locations = []
-        for location in search_contents(self.file_str.splitlines(), "River Rch & RM", expect_one=False):
+        tmp_n_flow_change_locations = self.n_flow_change_locations
+        for ind, location in enumerate(search_contents(self.file_str.splitlines(), "River Rch & RM", expect_one=False)):
             # parse river, reach, and river station for the flow change location
             river, reach, rs = location.split(",")
             lines = text_block_from_start_end_str(
@@ -264,7 +265,11 @@ class SteadyFlowAsset(GenericAsset):
                 for i in range(0, len(line), 8):
                     tmp_str = line[i : i + 8].lstrip(" ")
                     if len(tmp_str) == 0:
-                        break
+                        tmp_n_flow_change_locations -= 1  # invalid entry
+                        if len(flow_change_locations) == tmp_n_flow_change_locations:
+                            return flow_change_locations
+                        else:
+                            break
                     flows.append(float(tmp_str))
                     if len(flows) == self.n_profiles:
                         flow_change_locations.append(
@@ -276,7 +281,7 @@ class SteadyFlowAsset(GenericAsset):
                                 "profile_names": self.profile_names,
                             }
                         )
-                    if len(flow_change_locations) == self.n_flow_change_locations:
+                    if len(flow_change_locations) == tmp_n_flow_change_locations:
                         return flow_change_locations
 
     @property
