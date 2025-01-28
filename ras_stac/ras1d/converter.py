@@ -222,7 +222,11 @@ class Converter:
         try:
             return self.extension_dict[self.primary_plan.flow]
         except Exception:
-            return None
+            backup = [a for a in self.assets if isinstance(a, (SteadyFlowAsset, UnsteadyFlowAsset))]
+            if len(backup) == 0:
+                return None
+            else:
+                return backup[0]
 
     def check_for_mip(self) -> None:
         mip_data = [a for a in self.assets if a.name == "mip_package_geolocation_metadata.json"]
